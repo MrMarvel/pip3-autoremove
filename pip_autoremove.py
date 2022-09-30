@@ -8,7 +8,7 @@ import pip
 from pkg_resources import working_set, get_distribution, VersionConflict, DistributionNotFound
 
 
-__version__ = '0.10.0'
+__version__ = '0.10.1'
 
 try:
     raw_input
@@ -160,7 +160,7 @@ def main(argv=None):
             total_args += file_args
             autoremove(total_args, yes=opts.yes)
         except FileNotFoundError:
-            print('File \'%s\' not found!', filename)
+            print('File \'%s\' not found!' % filename)
     else:
         autoremove(args, yes=opts.yes)
 
