@@ -8,7 +8,7 @@ import pip
 from pkg_resources import working_set, get_distribution, VersionConflict, DistributionNotFound
 
 
-__version__ = '0.10.1'
+__version__ = '0.10.2'
 
 try:
     raw_input
