@@ -1,6 +1,7 @@
 from __future__ import print_function
 
 import optparse
+import os
 import subprocess
 import sys
 
@@ -8,7 +9,7 @@ import pip
 from pkg_resources import working_set, get_distribution, VersionConflict, DistributionNotFound
 
 
-__version__ = '0.10.2'
+__version__ = '0.10.3'
 
 try:
     raw_input
@@ -106,7 +107,8 @@ def show_freeze(dist):
 
 
 def remove_dists(dists):
-    if sys.executable:
+    if sys.executable and os.name != 'nt':
+        # Not working good with windows when packages locks directories like pywin32
         pip_cmd = [sys.executable, '-m', 'pip']
     else:
         pip_cmd = ['pip']
