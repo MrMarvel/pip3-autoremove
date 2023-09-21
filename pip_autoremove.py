@@ -112,7 +112,16 @@ def remove_dists(dists):
         pip_cmd = [sys.executable, '-m', 'pip']
     else:
         pip_cmd = ['pip']
-    subprocess.check_call(pip_cmd + ["uninstall", "-y"] + [d.project_name for d in dists])
+
+    try:
+        subprocess.check_call(pip_cmd + ["uninstall", "-y"] + [d.project_name for d in dists])
+    except Exception as e:
+        print(e)
+        print("Failed to uninstall packages.")
+        uninstall_separately = confirm("Try uninstall separately (y/N)? ")
+        if uninstall_separately:
+            for d in dists:
+                subprocess.check_call(pip_cmd + ["uninstall", "-y"] + [d.project_name])
 
 
 def get_graph():
