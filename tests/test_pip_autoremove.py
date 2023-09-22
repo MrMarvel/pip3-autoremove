@@ -51,7 +51,7 @@ def test_file():
     for name in expected:
         install_dist(name)
     try:
-        pip_autoremove.main(['-r', 'test/file_test.txt', '-y'])
+        pip_autoremove.main(['-r', 'tests/file_test.txt', '-y'])
     except Exception as e:
         assert not e
     for name in expected:
