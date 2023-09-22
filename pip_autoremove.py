@@ -6,10 +6,9 @@ import subprocess
 import sys
 
 import pip
-from pkg_resources import working_set, get_distribution, VersionConflict, DistributionNotFound
+from pkg_resources import working_set, get_distribution, VersionConflict, DistributionNotFound, Requirement
 
-
-__version__ = '0.10.3'
+__version__ = '1.0.0'
 
 try:
     raw_input
@@ -34,13 +33,13 @@ except (ModuleNotFoundError, ImportError):
 WHITELIST = ['pip', 'setuptools']
 
 
-def autoremove(names, yes=False):
-    dead = list_dead(names)
+def autoremove(names, yes=False, remove_extra=False):
+    dead = list_dead(names, remove_extras=remove_extra)
     if dead and (yes or confirm("Uninstall (y/N)? ")):
         remove_dists(dead)
 
 
-def list_dead(names):
+def list_dead(names, remove_extras=False):
     start = set()
     for name in names:
         try:
@@ -49,10 +48,10 @@ def list_dead(names):
             print("%s is not an installed pip module, skipping" % name, file=sys.stderr)
         except VersionConflict:
             print("%s is not the currently installed version, skipping" % name, file=sys.stderr)
-    graph = get_graph()
+    graph = get_graph(include_extras=remove_extras)
     dead = exclude_whitelist(find_all_dead(graph, start))
     for d in start:
-        show_tree(d, dead)
+        show_tree(d, dead, include_extras=True)
     return dead
 
 
@@ -60,7 +59,7 @@ def exclude_whitelist(dists):
     return set(dist for dist in dists if dist.project_name not in WHITELIST)
 
 
-def show_tree(dist, dead, indent=0, visited=None):
+def show_tree(dist, dead, indent=0, visited=None, include_extras=False):
     if visited is None:
         visited = set()
     if dist in visited:
@@ -68,9 +67,9 @@ def show_tree(dist, dead, indent=0, visited=None):
     visited.add(dist)
     print(' ' * 4 * indent, end='')
     show_dist(dist)
-    for req in requires(dist):
+    for req in requires(dist, include_extras=include_extras):
         if req in dead:
-            show_tree(req, dead, indent + 1, visited)
+            show_tree(req, dead, indent + 1, visited, include_extras=include_extras)
 
 
 def find_all_dead(graph, start):
@@ -115,18 +114,26 @@ def remove_dists(dists):
     subprocess.check_call(pip_cmd + ["uninstall", "-y"] + [d.project_name for d in dists])
 
 
-def get_graph():
-    g = dict((dist, set()) for dist in working_set)
-    for dist in working_set:
-        for req in requires(dist):
+def get_graph(include_extras=False):
+    g = dict((dist, set()) for dist in working_set.by_key.values())
+    for dist in g.keys():
+        for req in requires(dist, include_extras):
             g[req].add(dist)
     return g
 
 
-def requires(dist):
+def requires(dist, include_extras=False):
     required = []
-    for pkg in dist.requires():
+    extras = dist.extras if include_extras else set()
+    for pkg in dist.requires(extras):
         try:
+            if pkg.marker is not None:
+                if pkg.name not in working_set.by_key:
+                    # print("Extra distribution %s not found in working_set, skipping" % str(pkg), file=sys.stderr)
+                    continue
+                if pkg.name == dist.project_name:
+                    # Recursive
+                    continue
             required.append(get_distribution(pkg))
         except VersionConflict as e:
             print(e.report(), file=sys.stderr)
@@ -142,9 +149,9 @@ def main(argv=None):
     parser = create_parser()
     (opts, args) = parser.parse_args(argv)
     if opts.leaves or opts.freeze:
-        list_leaves(opts.freeze)
+        list_leaves(opts.freeze, include_extras=opts.include_extras)
     elif opts.list:
-        list_dead(args)
+        list_dead(args, remove_extras=opts.include_extras)
     elif len(args) == 0:
         parser.print_help()
     elif opts.read_file:
@@ -160,11 +167,11 @@ def main(argv=None):
                     file_args.append(line)
                     line = f.readline().rstrip('\n').strip()
             total_args += file_args
-            autoremove(total_args, yes=opts.yes)
+            autoremove(total_args, yes=opts.yes, remove_extra=opts.include_extras)
         except FileNotFoundError:
             print('File \'%s\' not found!' % filename)
     else:
-        autoremove(args, yes=opts.yes)
+        autoremove(args, yes=opts.yes, remove_extra=opts.include_extras)
 
 
 def get_leaves(graph):
@@ -175,8 +182,8 @@ def get_leaves(graph):
     return filter(is_leaf, graph)
 
 
-def list_leaves(freeze=False):
-    graph = get_graph()
+def list_leaves(freeze=False, include_extras=False):
+    graph = get_graph(include_extras)
     for node in get_leaves(graph):
         if freeze:
             show_freeze(node)
@@ -198,6 +205,9 @@ def create_parser():
     parser.add_option(
         '-y', '--yes', action='store_true', default=False,
         help="don't ask for confirmation of uninstall deletions.")
+    parser.add_option(
+        '-e', '--include-extras', action='store_true', default=False,
+        help="include in search all extras (like jsonschema[format]).")
     parser.add_option(
         '-f', '--freeze', action='store_true', default=False,
         help="list leaves (packages which are not used by any others) in file_test.txt format")

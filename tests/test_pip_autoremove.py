@@ -1,5 +1,7 @@
-import pkg_resources
+import os
 import subprocess
+
+import pkg_resources
 
 import pip_autoremove
 
@@ -58,7 +60,40 @@ def test_file():
         assert not has_dist(name)
 
 
+def test_locks_on_remove():
+    if os.name != 'nt':
+        print("Windows-specific test")
+        return
+    installing_packages = ["pywin32"]
+    for name in installing_packages:
+        install_dist(name)
+    try:
+        pip_autoremove.main(['-y'] + installing_packages)
+    except Exception as e:
+        assert not e
+    for name in installing_packages:
+        assert not has_dist(name)
+
+
+def test_remove_extras():
+    installing_packages = ["jsonschema[format]"]
+    extra_installed = ["webcolors"]
+    for name in installing_packages:
+        install_dist(name)
+    for name in installing_packages:
+        assert has_dist(name)
+    try:
+        pip_autoremove.main(['-y', '-e'] + installing_packages)
+    except Exception as e:
+        assert not e
+    for name in installing_packages:
+        assert not has_dist(name)
+    for name in extra_installed:
+        assert not has_dist(name)
+
+
 if __name__ == "__main__":
     test_main()
     test_find_all_dead()
     test_file()
+    test_remove_extras()
