@@ -65,6 +65,8 @@ def list_dead_extras(dead_base_distributions: set[DistInfoDistribution]):
     for dist in dead_base_distributions:
         for extra in dist.extras:
             optional_extras.update(optional_distributions_required(dist, [extra]))
+    optional_extras = exclude_whitelist(optional_extras)
+
     return dead_extras
 
 
@@ -191,6 +193,7 @@ def get_leaves(graph):
         return not graph[node]
 
     return filter(is_leaf, graph)
+
 
 
 def list_leaves(freeze=False, include_extras=False):
