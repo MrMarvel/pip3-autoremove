@@ -6,9 +6,12 @@ import subprocess
 import sys
 
 import pip
-from pkg_resources import working_set, get_distribution, VersionConflict, DistributionNotFound, Requirement
+from pkg_resources import working_set, get_distribution, VersionConflict, DistributionNotFound, Requirement, \
+    DistInfoDistribution
 
 __version__ = '1.0.0'
+
+from extra.extra_utils import optional_distributions_required
 
 try:
     raw_input
@@ -24,17 +27,18 @@ try:
     # pip >= 10.0.0 hides main in pip._internal. We'll monkey patch what we need and hopefully this becomes available
     # at some point.
     from pip._internal import main, logger
+
     pip.main = main
     pip.logger = logger
 except (ModuleNotFoundError, ImportError):
     pass
 
-
 WHITELIST = ['pip', 'setuptools']
 
 
 def autoremove(names, yes=False, remove_extra=False):
-    dead = list_dead(names, remove_extras=remove_extra)
+    dead = list_dead(names, remove_extras=False)
+    dead_extras = list_dead_extras(dead)
     if dead and (yes or confirm("Uninstall (y/N)? ")):
         remove_dists(dead)
 
@@ -53,6 +57,15 @@ def list_dead(names, remove_extras=False):
     for d in start:
         show_tree(d, dead, include_extras=True)
     return dead
+
+
+def list_dead_extras(dead_base_distributions: set[DistInfoDistribution]):
+    dead_extras = set()
+    optional_extras = set()
+    for dist in dead_base_distributions:
+        for extra in dist.extras:
+            optional_extras.update(optional_distributions_required(dist, [extra]))
+    return dead_extras
 
 
 def exclude_whitelist(dists):
@@ -77,7 +90,6 @@ def find_all_dead(graph, start):
 
 
 def find_dead(graph, dead):
-
     def is_killed_by_us(node):
         succ = graph[node]
         return succ and not (succ - dead)
@@ -175,7 +187,6 @@ def main(argv=None):
 
 
 def get_leaves(graph):
-
     def is_leaf(node):
         return not graph[node]
 
