@@ -9,6 +9,7 @@ setup(
     description="Remove a package and its unused dependencies(Supports Python3)",
     long_description=open('README.md').read(),
     long_description_content_type="text/markdown",
+    packages=['extra'],
     py_modules=["pip_autoremove"],
     license='Apache License 2.0',
     url='https://github.com/mrmarvel/pip3-autoremove',
