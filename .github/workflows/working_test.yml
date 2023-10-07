@@ -1,0 +1,23 @@
+name: Working Tests
+
+on:
+  - push
+  - pull_request
+  # push:
+  #   branches: [ dev ]
+  # pull_request:
+  #   branches: [ dev ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build tests
+      run: |
+        docker build -t tox .
+    - name: Run tests
+      run: |
+        docker run --name TOX --rm tox tox p
