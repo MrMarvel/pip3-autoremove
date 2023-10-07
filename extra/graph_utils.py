@@ -1,7 +1,7 @@
 from pkg_resources import working_set
 
 
-def get_graph_leafs(graph: dict) -> set:
+def get_graph_leafs(graph):
     def is_leaf(node):
         return len(graph[node]) < 1
 
@@ -9,7 +9,7 @@ def get_graph_leafs(graph: dict) -> set:
     return result
 
 
-def remove_graph_nodes(graph: dict, nodes: set) -> dict:
+def remove_graph_nodes(graph, nodes):
     new_graph = graph.copy()
     for node in nodes:
         del new_graph[node]
