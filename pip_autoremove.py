@@ -8,7 +8,7 @@ import sys
 import pip
 from pkg_resources import working_set, get_distribution, VersionConflict, DistributionNotFound
 
-__version__ = '1.0.0'
+__version__ = '1.1.0'
 
 from extra.extra_utils import optional_distributions_required, get_requirements_graph
 from extra.graph_utils import get_graph_leafs, remove_graph_nodes
@@ -84,6 +84,7 @@ def list_dead_extras(dead_base_distributions):
         return list_dead_extras(dead_base_distributions | leaf_extra_nodes)
     return dead_distribution_by_base
 
+
 def exclude_whitelist(dists):
     return set(dist for dist in dists if dist.project_name not in WHITELIST)
 
@@ -96,7 +97,7 @@ def show_tree(dist, dead, indent=0, visited=None, include_extras=False):
     visited.add(dist)
     print(' ' * 4 * indent, end='')
     show_dist(dist)
-    for req in requires(dist, include_extras=include_extras):
+    for req in requires(dist):
         if req in dead:
             show_tree(req, dead, indent + 1, visited, include_extras=include_extras)
 
@@ -142,20 +143,17 @@ def remove_dists(dists):
     subprocess.check_call(pip_cmd + ["uninstall", "-y"] + [d.project_name for d in dists])
 
 
-def get_graph(include_extras=False):
-    include_extras = False
+def get_graph():
     g = dict((dist, set()) for dist in working_set.by_key.values())
     for dist in g.keys():
-        for req in requires(dist, include_extras):
+        for req in requires(dist):
             g[req].add(dist)
     return g
 
 
-def requires(dist, include_extras=False):
-    include_extras = False
+def requires(dist):
     required = []
-    extras = dist.extras if include_extras else set()
-    for pkg in dist.requires(extras):
+    for pkg in dist.requires():
         try:
             if pkg.marker is not None:
                 if pkg.name not in working_set.by_key:
@@ -211,9 +209,10 @@ def get_leaves(graph):
     return filter(is_leaf, graph)
 
 
-
 def list_leaves(freeze=False, include_extras=False):
-    graph = get_graph(include_extras)
+    graph = get_graph()
+    if include_extras:
+        graph = get_requirements_graph(include_extras)
     for node in get_leaves(graph):
         if freeze:
             show_freeze(node)
