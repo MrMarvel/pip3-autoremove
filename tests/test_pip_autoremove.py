@@ -90,6 +90,7 @@ def test_remove_extras():
         assert not has_dist(name)
     for name in extra_installed:
         assert not has_dist(name)
+    pass
 
 
 if __name__ == "__main__":

@@ -54,8 +54,12 @@ def optional_distributions_required(
     return required_optional_distributions
 
 
-def optional_leaf_distributions_():
-    pass
+def get_requirements_graph():
+    g = dict((dist, set()) for dist in working_set.by_key.values())
+    for dist in g.keys():
+        for req in distributions_required(dist):
+            g[req].add(dist)
+    return g
 
 
 def main():

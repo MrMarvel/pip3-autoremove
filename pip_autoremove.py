@@ -11,7 +11,8 @@ from pkg_resources import working_set, get_distribution, VersionConflict, Distri
 
 __version__ = '1.0.0'
 
-from extra.extra_utils import optional_distributions_required
+from extra.extra_utils import optional_distributions_required, get_requirements_graph
+from extra.graph_utils import get_graph_leafs, remove_graph_nodes
 
 try:
     raw_input
@@ -37,10 +38,15 @@ WHITELIST = ['pip', 'setuptools']
 
 
 def autoremove(names, yes=False, remove_extra=False):
-    dead = list_dead(names, remove_extras=False)
-    dead_extras = list_dead_extras(dead)
-    if dead and (yes or confirm("Uninstall (y/N)? ")):
-        remove_dists(dead)
+    names_to_remove = list(names)
+    dead_base_distributions = list_dead(names)
+    dead_extras = set()
+    if remove_extra:
+        dead_extras = list_dead_extras(dead_base_distributions)
+    dead_distributions = dead_base_distributions | dead_extras
+    names_to_remove = list(map(lambda d: d.project_name, dead_distributions))
+    if dead_distributions and (yes or confirm("Uninstall (y/N)? ")):
+        remove_dists(dead_distributions)
 
 
 def list_dead(names, remove_extras=False):
@@ -52,23 +58,32 @@ def list_dead(names, remove_extras=False):
             print("%s is not an installed pip module, skipping" % name, file=sys.stderr)
         except VersionConflict:
             print("%s is not the currently installed version, skipping" % name, file=sys.stderr)
-    graph = get_graph(include_extras=remove_extras)
+    graph = get_graph()
     dead = exclude_whitelist(find_all_dead(graph, start))
+    if remove_extras:
+        dead = exclude_whitelist(dead)
     for d in start:
         show_tree(d, dead, include_extras=True)
     return dead
 
 
-def list_dead_extras(dead_base_distributions: set[DistInfoDistribution]):
-    dead_extras = set()
-    optional_extras = set()
-    for dist in dead_base_distributions:
-        for extra in dist.extras:
-            optional_extras.update(optional_distributions_required(dist, [extra]))
-    optional_extras = exclude_whitelist(optional_extras)
-
-    return dead_extras
-
+def list_dead_extras(dead_base_distributions):
+    graph = get_requirements_graph()
+    dead_distribution_by_base = exclude_whitelist(find_all_dead(graph, dead_base_distributions))
+    graph_without_base = remove_graph_nodes(graph, dead_distribution_by_base)
+    leaf_nodes = get_graph_leafs(graph_without_base)
+    leaf_extra_nodes = set()
+    restricted_extras_like = ['dev', 'test', 'doc']
+    for dist in dead_distribution_by_base:
+        allowed_extras = list(filter(lambda e: not any([restricted in e for restricted in restricted_extras_like]),
+                                     dist.extras))
+        optional_distributions = exclude_whitelist(optional_distributions_required(dist, allowed_extras))
+        for optional_dist in optional_distributions:
+            if optional_dist in leaf_nodes:
+                leaf_extra_nodes.add(optional_dist)
+    if len(leaf_extra_nodes) > 0:
+        return list_dead_extras(dead_base_distributions | leaf_extra_nodes)
+    return dead_distribution_by_base
 
 def exclude_whitelist(dists):
     return set(dist for dist in dists if dist.project_name not in WHITELIST)
@@ -129,6 +144,7 @@ def remove_dists(dists):
 
 
 def get_graph(include_extras=False):
+    include_extras = False
     g = dict((dist, set()) for dist in working_set.by_key.values())
     for dist in g.keys():
         for req in requires(dist, include_extras):
@@ -137,6 +153,7 @@ def get_graph(include_extras=False):
 
 
 def requires(dist, include_extras=False):
+    include_extras = False
     required = []
     extras = dist.extras if include_extras else set()
     for pkg in dist.requires(extras):
