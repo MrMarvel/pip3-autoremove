@@ -12,6 +12,15 @@ Supports both Python2 and Python3.
 This version also can remove packages listed in file 
 like 'requirements.txt'.
 
+## Special Feature!
+You can list and remove packages including their optional dependencies!
+
+Usage:
+> `pip-autoremove -f -e` to check leaf packages including extra packages.
+> Helps with managing packages like `jupyterlab`.
+> 
+> `pip-autoremove -y -e jupyterlab` to remove packages including their extra packages (recursive).
+
 ## How to install
 * How to install pip3-autoremove for Python3:
 ```
