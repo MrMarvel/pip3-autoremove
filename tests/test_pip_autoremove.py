@@ -1,9 +1,11 @@
 import os
 import subprocess
+from io import StringIO
 
 import pkg_resources
 
 import pip_autoremove
+from test_utils.std_wrapper import STDWrapper
 
 
 def test_find_all_dead():
@@ -90,6 +92,25 @@ def test_remove_extras():
         assert not has_dist(name)
     for name in extra_installed:
         assert not has_dist(name)
+    pass
+
+def test_show_extras():
+    installing_packages = ["jsonschema[format]"]
+    extra_installed = ["webcolors"]
+    for name in installing_packages:
+        install_dist(name)
+    for name in installing_packages:
+        assert has_dist(name)
+    console_output = StringIO()
+    with STDWrapper(stdout=console_output):
+        pip_autoremove.main(['-f', '-e'])
+    pip_autoremove.main(['-y', '-e'] + installing_packages)
+    for name in installing_packages:
+        assert not has_dist(name)
+    for name in extra_installed:
+        assert not has_dist(name)
+    for extra in extra_installed:
+        assert extra not in console_output.getvalue()
     pass
 
 
