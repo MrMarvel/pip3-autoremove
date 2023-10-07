@@ -1,5 +1,6 @@
 import os
 import subprocess
+import sys
 from io import StringIO
 
 import pkg_resources
@@ -95,22 +96,27 @@ def test_remove_extras():
     pass
 
 def test_show_extras():
+    # check version of python
+    if sys.version[0] < '3':
+        # Console wrapper doesn't work well on python 2.7
+        return
     installing_packages = ["jsonschema[format]"]
     extra_installed = ["webcolors"]
     for name in installing_packages:
         install_dist(name)
     for name in installing_packages:
         assert has_dist(name)
+
     console_output = StringIO()
     with STDWrapper(stdout=console_output):
         pip_autoremove.main(['-f', '-e'])
+    for extra in extra_installed:
+        assert extra not in console_output.getvalue()
     pip_autoremove.main(['-y', '-e'] + installing_packages)
     for name in installing_packages:
         assert not has_dist(name)
     for name in extra_installed:
         assert not has_dist(name)
-    for extra in extra_installed:
-        assert extra not in console_output.getvalue()
     pass
 
 

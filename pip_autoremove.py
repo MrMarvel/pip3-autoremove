@@ -8,7 +8,7 @@ import sys
 import pip
 from pkg_resources import working_set, get_distribution, VersionConflict, DistributionNotFound
 
-__version__ = '1.1.0'
+__version__ = '1.1.1'
 
 from extra.extra_utils import optional_distributions_required, get_requirements_graph
 from extra.graph_utils import get_graph_leafs, remove_graph_nodes
