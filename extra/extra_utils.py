@@ -5,7 +5,7 @@ from pkg_resources import EggInfoDistribution, get_distribution, VersionConflict
     DistInfoDistribution, Requirement
 
 
-def _get_dist(requirement: Requirement) -> DistInfoDistribution:
+def _get_dist(requirement):
     """Return the distribution matching the given requirement."""
     if requirement.name not in working_set.by_key:
         raise DistributionNotFound(requirement.name)
@@ -26,7 +26,7 @@ def _get_dist(requirement: Requirement) -> DistInfoDistribution:
     return required_dist
 
 
-def distributions_required(dist: EggInfoDistribution, extras: list[str] = None) -> set[DistInfoDistribution]:
+def distributions_required(dist, extras = None):
     """Return a list of distributions required by the given distribution."""
     if extras is None:
         extras = list()
@@ -42,9 +42,9 @@ def distributions_required(dist: EggInfoDistribution, extras: list[str] = None) 
 
 
 def optional_distributions_required(
-        dist: Union[EggInfoDistribution, DistInfoDistribution],
-        extras: list[str]
-) -> set[DistInfoDistribution]:
+        dist,
+        extras
+):
     required_base_distributions = distributions_required(dist)
     required_base_with_extra_distributions = distributions_required(dist, extras)
     required_optional_distributions = set()

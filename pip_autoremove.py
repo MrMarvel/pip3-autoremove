@@ -1,13 +1,10 @@
-from __future__ import print_function
-
 import optparse
 import os
 import subprocess
 import sys
 
 import pip
-from pkg_resources import working_set, get_distribution, VersionConflict, DistributionNotFound, Requirement, \
-    DistInfoDistribution
+from pkg_resources import working_set, get_distribution, VersionConflict, DistributionNotFound
 
 __version__ = '1.0.0'
 
