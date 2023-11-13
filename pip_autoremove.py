@@ -8,7 +8,7 @@ import sys
 import pip
 from pkg_resources import working_set, get_distribution, VersionConflict, DistributionNotFound
 
-__version__ = '1.1.2'
+__version__ = '1.2.0'
 
 from extra.extra_utils import optional_distributions_required, get_requirements_graph
 from extra.graph_utils import get_graph_leafs, remove_graph_nodes
@@ -135,11 +135,12 @@ def show_freeze(dist):
 
 
 def remove_dists(dists):
-    if sys.executable and os.name != 'nt':
-        # Not working good with windows when packages locks directories like pywin32
-        pip_cmd = [sys.executable, '-m', 'pip']
-    else:
-        pip_cmd = ['pip']
+    # if sys.executable and os.name != 'nt':
+    #     # Not working good with windows when packages locks directories like pywin32
+    #     pip_cmd = [sys.executable, '-m', 'pip']
+    # else:
+    #     pip_cmd = ['pip']
+    pip_cmd = [sys.executable, '-m', 'pip']
     subprocess.check_call(pip_cmd + ["uninstall", "-y"] + [d.project_name for d in dists])
 
 
