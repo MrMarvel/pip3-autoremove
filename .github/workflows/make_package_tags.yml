@@ -57,11 +57,11 @@ jobs:
         with:
           name: build_items
           path: build
-      - name: Add random numbers to filenames
-        run: |
-          cd build
-          for file in *.tar.gz; do mv "$file" "${file%.tar.gz}-$RANDOM.tar.gz"; done
-          for file in *-py2.py3-none-any.whl; do mv "$file" "${file%-py2.py3-none-any.whl}-$RANDOM-py2.py3-none-any.whl"; done
+#      - name: Add random numbers to filenames
+#        run: |
+#          cd build
+#          for file in *.tar.gz; do mv "$file" "${file%.tar.gz}-$RANDOM.tar.gz"; done
+#          for file in *-py2.py3-none-any.whl; do mv "$file" "${file%-py2.py3-none-any.whl}-$RANDOM-py2.py3-none-any.whl"; done
       - name: Publish package to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
