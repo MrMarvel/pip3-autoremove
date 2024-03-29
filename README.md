@@ -1,5 +1,10 @@
 # pip3-autoremove
 
+[![image](https://img.shields.io/pypi/dm/pip3-autoremove.svg)](https://pypi.python.org/pypi/pip3-autoremove/)
+
+[![image](https://img.shields.io/pypi/v/pip3-autoremove.svg)](https://pypi.python.org/pypi/pip3-autoremove/)
+
+[![image](https://img.shields.io/pypi/l/pip3-autoremove.svg)](https://pypi.python.org/pypi/pip3-autoremove/)
 
 * This repository based on
   * https://github.com/enjoysoftware/pip3-autoremove
