@@ -23,7 +23,7 @@ setup(
         'Programming Language :: Python :: 3',
         "Programming Language :: Python :: Implementation :: PyPy",
     ],
-    requires=[
+    install_requires=[
         'pip',
         'setuptools',
     ]
