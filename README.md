@@ -12,7 +12,7 @@
   * and https://github.com/invl/pip-autoremove
 
 Remove a package and its unused dependencies.  
-Supports both Python2 and Python3.
+Supports Python3 (old versions actually support python 2.7).
 
 This version also can remove packages listed in file 
 like 'requirements.txt'.
@@ -27,21 +27,18 @@ Usage:
 > `pip-autoremove -y -e jupyterlab` to remove packages including their extra packages (recursive).
 
 ## How to install
-* How to install pip3-autoremove for Python3:
-```
-sudo pip3 install pip3-autoremove
-```
-
-* How to install pip3-autoremove for Python2:
+* How to install pip3-autoremove for Python:
 ```
 sudo pip install pip3-autoremove
 ```
+
 
 ## Usage
 ```
 pip-autoremove packages-to-uninstall
 pip3-autoremove packages-to-uninstall
 pip-autoremove -r requirements.txt
+py -m pip_autoremove -ef
 ```
 
 To remove the globally installed package, add "sudo" before the pip-autoremove command.
