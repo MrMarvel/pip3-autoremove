@@ -71,7 +71,10 @@ def get_requirements_graph(extra_required=False):
             extras = list(filter(lambda e: not _is_restricted_extra(e), dist.extras))
             dist_requires_optional_list = optional_distributions_required(dist, extras)
             for req in dist_requires_optional_list:
-                if len(g[req]) > 0:
+                if len(g[req]) > 0:  # limiting to 1 parent
+                    continue
+                # reject if 2 packages depending on each other (fixing case matplotlib - fonttools (-ef parameters))
+                if req in g[dist]:
                     continue
                 g[req].add(dist)
     return g

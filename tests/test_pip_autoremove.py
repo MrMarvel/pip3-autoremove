@@ -139,8 +139,8 @@ def test_show_extras2():
         pip_autoremove.main(['-ef'])
     console_output = console_output_stream.getvalue()
     print(console_output)
-    for name in console_output.split():
-        assert has_dist(name)
+    for package in installing_packages:
+        assert package in console_output
     pip_autoremove.main(['-y', '-e'] + installing_packages)
     pass
 
