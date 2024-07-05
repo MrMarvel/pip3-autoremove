@@ -138,7 +138,8 @@ def test_show_extras2():
     with STDWrapper(stdout=console_output_stream):
         pip_autoremove.main(['-ef'])
     console_output = console_output_stream.getvalue()
-    for name in console_output:
+    print(console_output)
+    for name in console_output.split():
         assert has_dist(name)
     pip_autoremove.main(['-y', '-e'] + installing_packages)
     pass
@@ -149,3 +150,5 @@ if __name__ == "__main__":
     test_find_all_dead()
     test_file()
     test_remove_extras()
+    test_show_extras()
+    test_show_extras2()
