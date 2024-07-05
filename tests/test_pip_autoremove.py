@@ -120,6 +120,30 @@ def test_show_extras():
     pass
 
 
+def test_show_extras2():
+    """
+    Case: matplotlib install and does not show somehow with -ef
+    """
+    # check version of python
+    if sys.version[0] < '3':
+        # Console wrapper doesn't work well on python 2.7
+        return
+    installing_packages = ["matplotlib"]
+    for name in installing_packages:
+        install_dist(name)
+    for name in installing_packages:
+        assert has_dist(name)
+
+    console_output_stream = StringIO()
+    with STDWrapper(stdout=console_output_stream):
+        pip_autoremove.main(['-ef'])
+    console_output = console_output_stream.getvalue()
+    for name in console_output:
+        assert has_dist(name)
+    pip_autoremove.main(['-y', '-e'] + installing_packages)
+    pass
+
+
 if __name__ == "__main__":
     test_main()
     test_find_all_dead()
