@@ -1,8 +1,4 @@
-import sys
-from typing import Union
-
-from pkg_resources import EggInfoDistribution, get_distribution, VersionConflict, DistributionNotFound, working_set, \
-    DistInfoDistribution, Requirement
+from pkg_resources import get_distribution, VersionConflict, DistributionNotFound, working_set
 
 restricted_extras_like = ['dev', 'test', 'doc']
 
@@ -67,12 +63,14 @@ def optional_distributions_required(
 def get_requirements_graph(extra_required=False):
     g = dict((dist, set()) for dist in working_set.by_key.values())
     for dist in g.keys():
-        for req in distributions_required(dist):
+        dist_requires_list = distributions_required(dist)
+        for req in dist_requires_list:
             g[req].add(dist)
     for dist in g.keys():
         if extra_required:
             extras = list(filter(lambda e: not _is_restricted_extra(e), dist.extras))
-            for req in optional_distributions_required(dist, extras):
+            dist_requires_optional_list = optional_distributions_required(dist, extras)
+            for req in dist_requires_optional_list:
                 if len(g[req]) > 0:
                     continue
                 g[req].add(dist)
