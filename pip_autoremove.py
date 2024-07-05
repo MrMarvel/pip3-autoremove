@@ -214,7 +214,8 @@ def list_leaves(freeze=False, include_extras=False):
     graph = get_graph()
     if include_extras:
         graph = get_requirements_graph(include_extras)
-    for node in get_leaves(graph):
+    leafs = list(get_leaves(graph))
+    for node in leafs:
         if freeze:
             show_freeze(node)
         else:
