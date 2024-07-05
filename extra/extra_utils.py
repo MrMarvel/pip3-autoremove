@@ -44,6 +44,9 @@ def distributions_required(dist, extras=None):
             required_distributions.add(required_dist)
         except DistributionNotFound as _:
             pass
+    # verify that dist is not in required dists (contourpy case)
+    if dist in required_distributions:
+        required_distributions.remove(dist)
 
     return required_distributions
 
