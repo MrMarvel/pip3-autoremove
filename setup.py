@@ -21,6 +21,7 @@ setup(
         'Programming Language :: Python :: 3',
         "Programming Language :: Python :: Implementation :: PyPy",
     ],
+    python_requires='>=3.8',
     install_requires=[
         'pip',
         'setuptools',

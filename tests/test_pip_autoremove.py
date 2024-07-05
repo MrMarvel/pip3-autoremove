@@ -146,9 +146,4 @@ def test_show_extras2():
 
 
 if __name__ == "__main__":
-    test_main()
-    test_find_all_dead()
-    test_file()
-    test_remove_extras()
-    test_show_extras()
     test_show_extras2()
