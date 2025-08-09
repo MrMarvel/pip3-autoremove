@@ -2,8 +2,6 @@ import abc
 import re
 from typing import final, Union
 
-from extra.profiling_test import make_all_profiling_in_module
-
 
 class DistributionInfo(object):
     def __init__(self):
