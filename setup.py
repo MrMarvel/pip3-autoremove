@@ -2,7 +2,6 @@ from setuptools import setup
 
 import pip_autoremove
 
-
 setup(
     name="pip3-autoremove",
     version=pip_autoremove.__version__,
@@ -18,13 +17,11 @@ setup(
         'Intended Audience :: Developers',
         'License :: OSI Approved :: Apache Software License',
         'Programming Language :: Python',
-        'Programming Language :: Python :: 2.6',
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
         "Programming Language :: Python :: Implementation :: PyPy",
     ],
     install_requires=[
         'pip',
-        'setuptools',
     ]
 )

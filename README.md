@@ -6,13 +6,16 @@
 
 [![image](https://img.shields.io/pypi/l/pip3-autoremove.svg)](https://pypi.python.org/pypi/pip3-autoremove/)
 
-* This repository based on
+This project has been rewritten from scratch to support new importlib implementation 
+for python 3.10+.
+
+* I was inspired by the following projects:
   * https://github.com/enjoysoftware/pip3-autoremove
   * https://github.com/tresni/pip-autoremove
   * and https://github.com/invl/pip-autoremove
 
 Remove a package and its unused dependencies.  
-Supports both Python2 and Python3.
+Supports both Python2(at least old builds) and Python3.
 
 This version also can remove packages listed in file 
 like 'requirements.txt'.

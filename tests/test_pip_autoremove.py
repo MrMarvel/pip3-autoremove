@@ -11,17 +11,16 @@ from test_utils.std_wrapper import STDWrapper
 
 def test_find_all_dead():
     graph = {
-        'Flask': set([]),
-        'Jinja2': set(['Flask']),
-        'MarkupSafe': set(['Jinja2']),
-        'Werkzeug': set(['Flask']),
-        'itsdangerous': set(['Flask']),
-        'pip': set([]),
-        'setuptools': set([]),
+        'Flask': {},
+        'Jinja2': {'Flask'},
+        'MarkupSafe': {'Jinja2'},
+        'Werkzeug': {'Flask'},
+        'itsdangerous': {'Flask'},
+        'pip': {},
+        'setuptools': {},
     }
-    start = set(["Flask"])
-    expected = set(
-        ["Flask", "Jinja2", "MarkupSafe", "Werkzeug", "itsdangerous"])
+    start = {"Flask"}
+    expected = {"Flask", "Jinja2", "MarkupSafe", "Werkzeug", "itsdangerous"}
     dead = pip_autoremove.find_all_dead(graph, start)
     assert dead == expected
 
@@ -94,6 +93,7 @@ def test_remove_extras():
     for name in extra_installed:
         assert not has_dist(name)
     pass
+
 
 def test_show_extras():
     # check version of python
