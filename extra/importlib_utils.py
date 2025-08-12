@@ -1,6 +1,6 @@
 import abc
 import re
-from typing import final, Union
+from typing import final, Union, List
 
 
 class DistributionInfo(object):
@@ -29,7 +29,7 @@ class DistributionInfo(object):
     @property
     def name_general(self) -> str:
         if not self.__name_general and self.name:
-            self.__name_general = self.name.lower().replace('_', '-')
+            self.__name_general = get_package_general_name(self.name)
         # print(self.__name_general)
         return self.__name_general
 
@@ -42,15 +42,15 @@ class DistributionInfo(object):
         return self._lib_path_location
 
     @property
-    def available_extras(self) -> list[str]:
+    def available_extras(self) -> List[str]:
         return self._available_extras
 
     @property
-    def requirements(self) -> list['RequirementInfo']:
+    def requirements(self) -> List['RequirementInfo']:
         return self._requirements
 
-    def requirements_filter(self, enabled_extras: list[str] = None) \
-            -> list['RequirementInfo']:
+    def requirements_filter(self, enabled_extras: List[str] = None) \
+            -> List['RequirementInfo']:
         if not self.requirements:
             return self.requirements
         enabled_extras = enabled_extras or list()
@@ -64,7 +64,6 @@ class DistributionInfo(object):
 
         def name(self, name: str):
             self._instance._name = name
-            self._instance.__name_general = name.lower().replace('_', '-')
             return self
 
         def version(self, version: str):
@@ -75,11 +74,11 @@ class DistributionInfo(object):
             self._instance._lib_path_location = lib_path_location
             return self
 
-        def available_extras(self, available_extras: list[str]):
+        def available_extras(self, available_extras: List[str]):
             self._instance._available_extras = available_extras
             return self
 
-        def requirements(self, requirements: list['RequirementInfo']):
+        def requirements(self, requirements: List['RequirementInfo']):
             self._instance._requirements = requirements
             return self
 
@@ -101,7 +100,7 @@ class RequirementInfo(object):
     @property
     def name_general(self) -> str:
         if not self.__name_general and self.name:
-            self.__name_general = self.name.lower().replace('_', '-')
+            self.__name_general = get_package_general_name(self.name)
         return self.__name_general
 
     @property
@@ -124,15 +123,47 @@ class RequirementInfo(object):
                 ")"
         )
 
+    def parse_str(self, str_repr: str) -> 'RequirementInfo.Builder':
+        """
+        Parses the string representation of the requirement.
+        The format is:
+        name[extra1,extra2,...]; extra == "condition_extra"
+        """
+        regex = (
+            r"^\s*(?P<requirement_name>[\w\-]+)\s*"
+            r"(?:\[(?P<requirement_extras>.*)\])?"
+            r"(?:.*extra\s*==\s*\"(?P<condition_extra>[\w\-]+)\")?.*$")
+        match = re.match(regex, str_repr)
+        if not match:
+            raise ValueError(
+                "Invalid requirement string format: " + str_repr + ". " +
+                "Expected format: name[extra1,extra2,...]; extra == \"condition_extra\"")
+        name = match.group('requirement_name')
+        # res_builder = self.Builder()
+        if not name:
+            raise ValueError("Requirement name cannot be empty.")
+
+        enabled_extras_str = match.group('requirement_extras')
+        enabled_extras = str(enabled_extras_str).strip().split(',') \
+            if enabled_extras_str else []
+        condition_extra = match.group('condition_extra')
+        res = (self.Builder()
+               .name(name)
+               .enabled_extras(enabled_extras)
+               .condition_extra(condition_extra)
+               )
+        return res
+
     class Builder(object):
         def __init__(self):
             self._instance = RequirementInfo()
+            self._instance._enabled_extras = list()
 
         def name(self, name: str):
             self._instance._name = name
             return self
 
-        def enabled_extras(self, enabled_extras: list[str]):
+        def enabled_extras(self, enabled_extras: List[str]):
             self._instance._enabled_extras = enabled_extras
             return self
 
@@ -141,7 +172,19 @@ class RequirementInfo(object):
             return self
 
         def build(self):
-            return self._instance  # do not use builder after build
+            if not self._instance.name:
+                raise ValueError("RequirementInfo must have a name.")
+            res = self._instance
+            self._instance = None
+            return res  # do not use builder after build
+
+
+def get_package_general_name(name: str) -> str:
+    """
+    Returns the general name of the package, which is the name in lowercase
+    with underscores replaced by hyphens.
+    """
+    return name.lower().replace('_', '-')
 
 
 class ImportUtils(abc.ABC):
@@ -153,15 +196,37 @@ class ImportUtils(abc.ABC):
         raise self.ImportUtilsInitializationError(
             "ImportUtils is an abstract class and cannot be instantiated directly.")
 
-    @abc.abstractmethod
+    @final
     def get_distribution(self, name: str) -> DistributionInfo:
         """
         Returns the distribution information for the given package name.
         """
-        raise NotImplementedError()
+        if type(name) is not str:
+            raise TypeError("\"name\" must be a str but got " + str(type(name)) + ".")
+        if not self._known_dists:
+            self.get_installed_distributions()
+        requirement = RequirementInfo().parse_str(name).build()
+        name_general = requirement.name_general
+        if name_general not in self._known_dists:
+            raise self.InstalledDependencyNotFound(name)
+        res = self._known_dists[name_general]
+        return res
+
+    @final
+    def get_requirement(self, str_repr: str) -> RequirementInfo:
+        if type(str_repr) is not str:
+            raise TypeError("\"str_repr\" must be a str but got " +
+                            str(type(str_repr)) + ".")
+        if not self._known_dists:
+            self.get_installed_distributions()
+        requirement = RequirementInfo().parse_str(str_repr).build()
+        name_general = requirement.name_general
+        if name_general not in self._known_dists:
+            raise self.InstalledDependencyNotFound(requirement.name)
+        return requirement
 
     @abc.abstractmethod
-    def get_installed_distributions(self) -> list[DistributionInfo]:
+    def get_installed_distributions(self) -> List[DistributionInfo]:
         """
         Returns a list of installed distributions.
         This method is optional and may not be implemented by all subclasses.
@@ -234,15 +299,7 @@ class ImportUtilsPkgResources(ImportUtils):
             except ImportError:
                 raise Exception("pkg_resources module is not available.")
 
-    def get_distribution(self, name: str) -> DistributionInfo:
-        if not self._known_dists:
-            self.get_installed_distributions()
-        if name not in self._known_dists:
-            raise self.InstalledDependencyNotFound(name)
-        res = self._known_dists[name]
-        return res
-
-    def get_installed_distributions(self) -> list[DistributionInfo]:
+    def get_installed_distributions(self) -> List[DistributionInfo]:
         if self._known_dists:
             return list(self._known_dists.values())
         distributions_raw = list(self.__pkg_resources.working_set)
@@ -257,7 +314,7 @@ class ImportUtilsPkgResources(ImportUtils):
         return self.get_installed_distributions()
 
     def _get_requirement_dependencies(
-            self, name: str, enabled_extras: list = None) -> list[RequirementInfo]:
+            self, name: str, enabled_extras: list = None) -> List[RequirementInfo]:
         try:
             d = self.__pkg_resources.get_distribution(name)
             requirements_raw = d.requires(extras=enabled_extras)
@@ -286,14 +343,14 @@ class ImportUtilsPkgResources(ImportUtils):
             self._available_extras = list(dist_raw.extras)
 
         @property
-        def requirements(self) -> list['RequirementInfo']:
+        def requirements(self) -> List['RequirementInfo']:
             if not self._requirements:
                 self._requirements = self.requirements_filter(
                     enabled_extras=self.available_extras)
             return super(self.__class__, self).requirements
 
-        def requirements_filter(self, enabled_extras: list[str] = None) \
-                -> list[RequirementInfo]:
+        def requirements_filter(self, enabled_extras: List[str] = None) \
+                -> List[RequirementInfo]:
             requirements = ImportUtilsPkgResources()._get_requirement_dependencies(
                 self.name, enabled_extras)
             return requirements
@@ -324,28 +381,7 @@ class ImportUtilsImportlib(ImportUtils):
             raise self.ImportUtilsInitializationError(
                 "Module \"importlib\" is not available.")
 
-    def get_distribution(self, name: str) -> DistributionInfo:
-        if type(name) is not str:
-            raise TypeError("\"name\" must be a str but got " + str(type(name)) + ".")
-        if not self._known_dists:
-            self.get_installed_distributions()
-        if name not in self._known_dists:
-            raise self.InstalledDependencyNotFound(name)
-        res = self._known_dists[name]
-        # try:
-        #     d = self._importlib_metadata.distribution(name)
-        # except self._importlib_metadata.PackageNotFoundError:
-        #     raise self.InstalledDependencyNotFound(name)
-        # res = self.__DistributionInfoProxy(d.metadata)
-        # res_builder = DistributionInfo.Builder()
-        # res_builder.name = str(d.name)
-        # res_builder.version = str(d.version)
-        # res_builder.available_extras = list(d.metadata.json.get(
-        # 'provides_extra', list()))
-        # res_builder.lib_path_location = str(d.locate_file('.'))
-        return res
-
-    def get_installed_distributions(self) -> list[DistributionInfo]:
+    def get_installed_distributions(self) -> List[DistributionInfo]:
         if self._known_dists:
             return list(self._known_dists.values())
         distributions_raw = list(self._importlib_metadata.distributions())
@@ -366,7 +402,7 @@ class ImportUtilsImportlib(ImportUtils):
         return self.get_installed_distributions()
 
     @staticmethod
-    def _get_requirement_dependencies(metadata) -> list[RequirementInfo]:
+    def _get_requirement_dependencies(metadata) -> List[RequirementInfo]:
         regex_get_name_extras_condition_extra = (
             r"^\s*(?P<requirement_name>[\w\-]+)\s*"
             r"(?:\[(?P<requirement_extras>.*)\])?"
@@ -419,14 +455,14 @@ class ImportUtilsImportlib(ImportUtils):
             return super(self.__class__, self).lib_path_location
 
         @property
-        def available_extras(self) -> list[str]:
+        def available_extras(self) -> List[str]:
             if not self._available_extras:
                 self._available_extras = self.__metadata.get_all('provides-extra', list())
             return super(self.__class__, self).available_extras
 
         @property
         def requirements(
-                self, enabled_extras: list[str] = None) -> list['RequirementInfo']:
+                self, enabled_extras: List[str] = None) -> List['RequirementInfo']:
             if not self._requirements:
                 self._requirements = ImportUtilsImportlib._get_requirement_dependencies(
                     self.__metadata)
@@ -438,10 +474,12 @@ class ImportUtilsImportlib(ImportUtils):
 
 def main():
     util1, util2 = ImportUtilsPkgResources(), ImportUtilsImportlib()
-    for _ in range(10):
+    for i in range(10):
         utils = [util1, util2]
         a, b = list(util.get_distribution('fastapi') for util in utils)[:2]
-        print(a, b)
+        if i == 0:
+            print(a)
+            print(b)
         # a2, b2 = list(util.get_requirement_dependencies('fastapi')
         # for util in utils)[:2]
         c1, c2 = list(util.get_installed_distributions() for util in utils)[:2]
@@ -450,6 +488,10 @@ def main():
                 _ = (d.name, d.version, d.lib_path_location, d.available_extras,
                      d.requirements)
         pass
+        d1, d2 = list(util.get_requirement('fastapi[standard]') for util in utils)[:2]
+        if i == 0:
+            print(d1)
+            print(d2)
     pass
 
 

@@ -1,3 +1,5 @@
+from typing import Set, Dict, List
+
 from extra import importlib_utils
 from extra.graph_utils import get_graph_leafs, test_graph_loops
 from extra.importlib_utils import DistributionInfo
@@ -17,7 +19,7 @@ def _get_dist(requirement) -> DistributionInfo:
     return dist
 
 
-def distributions_required(dist: DistributionInfo, extras: list[str] = None):
+def distributions_required(dist: DistributionInfo, extras: List[str] = None):
     """Return a list of distributions required by the given distribution."""
     if extras is None:
         extras = list()
@@ -34,7 +36,7 @@ def distributions_required(dist: DistributionInfo, extras: list[str] = None):
 
 def optional_distributions_required(
         dist: DistributionInfo,
-        extras: list[str] = None
+        extras: List[str] = None
 ):
     required_base_distributions = distributions_required(dist)
     required_base_with_extra_distributions = distributions_required(dist, extras)
@@ -45,7 +47,7 @@ def optional_distributions_required(
     return required_optional_distributions
 
 
-def delete_cycles(graph: dict[DistributionInfo, set[DistributionInfo]]):
+def delete_cycles(graph: Dict[DistributionInfo, Set[DistributionInfo]]):
     """
     We are starting from the leaf nodes,
     and we detect cycles by removing deep connections.

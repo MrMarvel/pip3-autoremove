@@ -26,7 +26,8 @@ def test_find_all_dead():
 
 
 def install_dist(req):
-    subprocess.check_call(["pip", "install", req])
+    pip_cmd = [sys.executable, '-m', 'pip']
+    subprocess.check_call(pip_cmd + ["install", req])
 
 
 def has_dist(req):

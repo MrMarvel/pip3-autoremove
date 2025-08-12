@@ -6,6 +6,8 @@ import sys
 
 __version__ = '2.0.0-alpha'
 
+from typing import List
+
 from extra import importlib_utils
 from extra.extra_utils import optional_distributions_required, get_requirements_graph
 from extra.graph_utils import get_graph_leafs, remove_graph_nodes
@@ -149,7 +151,7 @@ def get_graph(installed_distributions):
     return g
 
 
-def requires(dist: DistributionInfo, installed_dists: list[DistributionInfo]):
+def requires(dist: DistributionInfo, installed_dists: List[DistributionInfo]):
     required = []
     installed_dependencies_names = list(
         x.name.lower() for x in installed_dists)
