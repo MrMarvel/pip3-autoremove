@@ -1,15 +1,15 @@
 from setuptools import setup
 
-import pip_autoremove
+from about_package import __version__
 
 setup(
     name="pip3-autoremove",
-    version=pip_autoremove.__version__,
+    version=__version__,
     description="Remove a package and its unused dependencies(Supports Python3)",
     long_description=open('README.md').read(),
     long_description_content_type="text/markdown",
     packages=['extra'],
-    py_modules=["pip_autoremove"],
+    py_modules=["pip_autoremove", "about_package"],
     license='Apache License 2.0',
     url='https://github.com/mrmarvel/pip3-autoremove',
     classifiers=[
@@ -23,5 +23,6 @@ setup(
     ],
     install_requires=[
         'pip',
+        'packaging',
     ]
 )

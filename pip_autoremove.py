@@ -4,14 +4,14 @@ import optparse
 import subprocess
 import sys
 
-__version__ = '2.0.0-alpha'
-
 from typing import List
 
 from extra import importlib_utils
 from extra.extra_utils import optional_distributions_required, get_requirements_graph
-from extra.graph_utils import get_graph_leafs, remove_graph_nodes
+from extra.graph_utils import get_graph_leaves, remove_graph_nodes
 from extra.importlib_utils import DistributionInfo
+
+from about_package import __version__
 
 try:
     # noinspection PyShadowingBuiltins,PyUnresolvedReferences
@@ -21,7 +21,7 @@ except NameError:
 
 import_utils_lib = importlib_utils.ImportUtilsFactory.create()
 
-WHITELIST = ['pip', 'setuptools']
+WHITELIST = ['pip', 'packaging']
 
 
 def autoremove(names, yes=False, remove_extra=False):
@@ -45,10 +45,11 @@ def list_dead(names, remove_extras=False):
             print("%s is not an installed pip module, skipping" % name,
                   file=sys.stderr)
     installed_distributions = import_utils_lib.get_installed_distributions()
-    graph = get_requirements_graph(installed_distributions, remove_extras)
+    graph = get_requirements_graph(import_utils_lib, remove_extras)
     dead = exclude_whitelist(find_all_dead(graph, start))
     if remove_extras:
         dead = exclude_whitelist(dead)
+    # b: importlib_utils.ImportUtils
     for d in start:
         show_tree(d, dead, installed_distributions, include_extras=True)
     return dead
@@ -56,11 +57,11 @@ def list_dead(names, remove_extras=False):
 
 def list_dead_extras(dead_base_distributions):
     installed_distributions = import_utils_lib.get_installed_distributions()
-    graph = get_requirements_graph(installed_distributions)
+    graph = get_requirements_graph(import_utils_lib, installed_distributions)
     dead_distribution_by_base = exclude_whitelist(
         find_all_dead(graph, dead_base_distributions))
     graph_without_base = remove_graph_nodes(graph, dead_distribution_by_base)
-    leaf_nodes = get_graph_leafs(graph_without_base)
+    leaf_nodes = get_graph_leaves(graph_without_base)
     leaf_extra_nodes = set()
     restricted_extras_like = ['dev', 'test', 'doc']
     for dist in dead_distribution_by_base:
@@ -69,7 +70,7 @@ def list_dead_extras(dead_base_distributions):
                 [restricted in e for restricted in restricted_extras_like]
             ), dist.available_extras))
         optional_distributions = exclude_whitelist(optional_distributions_required(
-            dist, allowed_extras))
+            import_utils_lib, dist, allowed_extras))
         for optional_dist in optional_distributions:
             if optional_dist in leaf_nodes:
                 leaf_extra_nodes.add(optional_dist)
@@ -196,7 +197,7 @@ def main(argv=None):
                     if len(line) < 1:
                         break
                     file_args.append(line)
-                    line = f.readline().rstrip('\n').strip()
+                    line = str(f.readline()).rstrip('\n').strip()
             total_args += file_args
             autoremove(total_args, yes=opts.yes, remove_extra=opts.include_extras)
         except FileNotFoundError:
@@ -213,13 +214,12 @@ def get_leaves(graph):
 
 
 def list_leaves(freeze=False, include_extras=False):
-    installed_distributions = import_utils_lib.get_installed_distributions()
-    if include_extras:
-        graph = get_requirements_graph(installed_distributions, include_extras)
-    else:
-        graph = get_graph(installed_distributions)
+    # installed_distributions = import_utils_lib.get_installed_distributions()
+    graph = get_requirements_graph(
+        import_utils_lib, include_extras)
 
-    for node in get_leaves(graph):
+    leaves = get_graph_leaves(graph)
+    for node in leaves:
         if freeze:
             show_freeze(node)
         else:

@@ -1,6 +1,13 @@
+# coding=utf-8
 import abc
+import logging
 import re
-from typing import final, Union, List
+import weakref
+from typing import Union, List
+import packaging.requirements
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 
 class DistributionInfo(object):
@@ -54,9 +61,10 @@ class DistributionInfo(object):
         if not self.requirements:
             return self.requirements
         enabled_extras = enabled_extras or list()
-        return list(filter(
+        res = list(filter(
             lambda x: not x.condition_extra or x.condition_extra in enabled_extras,
             self._requirements))
+        return res
 
     class Builder:
         def __init__(self):
@@ -123,16 +131,24 @@ class RequirementInfo(object):
                 ")"
         )
 
-    def parse_str(self, str_repr: str) -> 'RequirementInfo.Builder':
-        """
-        Parses the string representation of the requirement.
-        The format is:
-        name[extra1,extra2,...]; extra == "condition_extra"
-        """
+    def __eq__(self, other):
+        if not isinstance(other, RequirementInfo):
+            return super(self.__class__, self) == other
+        if self.name_general != other.name_general:
+            return False
+        if self.condition_extra != other.condition_extra:
+            return False
+        if self.enabled_extras != other.enabled_extras:
+            return False
+        return True
+
+    @classmethod
+    def __parse_str_regex(cls, str_repr: str) -> 'RequirementInfo':
         regex = (
             r"^\s*(?P<requirement_name>[\w\-]+)\s*"
             r"(?:\[(?P<requirement_extras>.*)\])?"
-            r"(?:.*extra\s*==\s*\"(?P<condition_extra>[\w\-]+)\")?.*$")
+            r"(?:.*extra\s*==\s*"
+            r"(?P<_quote>[\"\'])(?P<condition_extra>[\w\-]+)(?P=_quote))?.*$")
         match = re.match(regex, str_repr)
         if not match:
             raise ValueError(
@@ -147,12 +163,55 @@ class RequirementInfo(object):
         enabled_extras = str(enabled_extras_str).strip().split(',') \
             if enabled_extras_str else []
         condition_extra = match.group('condition_extra')
-        res = (self.Builder()
+        res = (cls.Builder()
                .name(name)
                .enabled_extras(enabled_extras)
                .condition_extra(condition_extra)
-               )
+               ).build()
         return res
+
+    @classmethod
+    def __parse_str_packaging_satisfy(
+            cls, str_repr: str, condition_extra: Union[str, None] = None
+    ) -> bool:
+        try:
+            req = packaging.requirements.Requirement(str_repr)
+        except packaging.requirements.InvalidRequirement:
+            raise ValueError("Invalid requirement string format: " + str_repr)
+        custom_env = dict()
+        if condition_extra:
+            custom_env['extra'] = condition_extra
+        res = True
+        if req.marker:
+            res = req.marker.evaluate(custom_env)
+        return res
+
+    @classmethod
+    def parse_str(cls, str_repr: str) -> 'RequirementInfo':
+        """
+        Parses the string representation of the requirement.
+        The format is:
+        name[extra1,extra2,...]; extra == "condition_extra"
+        """
+        res = cls.__parse_str_regex(str_repr)
+        if not cls.__parse_str_packaging_satisfy(str_repr, res.condition_extra):
+            raise cls.SatisfyException(str_repr, res.condition_extra)
+        return res
+
+    class SatisfyException(Exception):
+        """
+        Exception raised when the requirement string does not satisfy the condition.
+        """
+
+        def __init__(self, str_repr: str, condition_extra: Union[str, None] = None):
+            self.str_repr = str_repr
+            self.condition_extra = condition_extra
+
+        def __str__(self):
+            return ("Requirement string \"" + self.str_repr + "\" does not satisfy" +
+                    ((" with the condition extra \"" + str(self.condition_extra))
+                     if self.condition_extra else "") +
+                    "\".")
 
     class Builder(object):
         def __init__(self):
@@ -196,34 +255,33 @@ class ImportUtils(abc.ABC):
         raise self.ImportUtilsInitializationError(
             "ImportUtils is an abstract class and cannot be instantiated directly.")
 
-    @final
     def get_distribution(self, name: str) -> DistributionInfo:
         """
         Returns the distribution information for the given package name.
         """
-        if type(name) is not str:
-            raise TypeError("\"name\" must be a str but got " + str(type(name)) + ".")
-        if not self._known_dists:
-            self.get_installed_distributions()
-        requirement = RequirementInfo().parse_str(name).build()
+        requirement = self.get_requirement(name)
         name_general = requirement.name_general
-        if name_general not in self._known_dists:
-            raise self.InstalledDependencyNotFound(name)
         res = self._known_dists[name_general]
         return res
 
-    @final
     def get_requirement(self, str_repr: str) -> RequirementInfo:
         if type(str_repr) is not str:
             raise TypeError("\"str_repr\" must be a str but got " +
                             str(type(str_repr)) + ".")
         if not self._known_dists:
             self.get_installed_distributions()
-        requirement = RequirementInfo().parse_str(str_repr).build()
+        requirement = RequirementInfo().parse_str(str_repr)
         name_general = requirement.name_general
         if name_general not in self._known_dists:
             raise self.InstalledDependencyNotFound(requirement.name)
         return requirement
+
+    # @final
+    # def fetch_requirements(
+    #         self, req: RequirementInfo) -> List[RequirementInfo]:
+    #     if not dist.requirements:
+    #         dist._requirements = dist.requirements_filter(
+    #             enabled_extras=dist.available_extras)
 
     @abc.abstractmethod
     def get_installed_distributions(self) -> List[DistributionInfo]:
@@ -233,7 +291,6 @@ class ImportUtils(abc.ABC):
         """
         raise NotImplementedError()
 
-    @final
     def clear_known_distributions(self):
         """
         Clears the cache of known distributions.
@@ -279,8 +336,14 @@ class ImportUtilsFactory:
     def create() -> ImportUtils:
         try:
             return ImportUtilsImportlib()
-        except ImportError:
+        except ImportUtils.ImportUtilsInitializationError:
+            pass
+        try:
             return ImportUtilsPkgResources()
+        except ImportUtils.ImportUtilsInitializationError:
+            raise ImportUtils.ImportUtilsInitializationError(
+                "No suitable ImportUtils implementation found. "
+                "Please install importlib.metadata or pkg_resources.")
 
 
 class ImportUtilsPkgResources(ImportUtils):
@@ -290,14 +353,23 @@ class ImportUtilsPkgResources(ImportUtils):
 
     __pkg_resources = None
 
-    def __init__(self):
-        super(self.__class__, self).__init__()
+    def __import(self):
         if self.__pkg_resources is None:
             try:
                 import pkg_resources
                 self.__pkg_resources = pkg_resources
             except ImportError:
                 raise Exception("pkg_resources module is not available.")
+
+    def __init__(self):
+        super(self.__class__, self).__init__()
+        self.__import()
+
+    def clear_known_distributions(self):
+        self.__pkg_resources = None
+        self.__import()
+        getattr(self.__pkg_resources, '_initialize_master_working_set', lambda: None)()
+        super(self.__class__, self).clear_known_distributions()
 
     def get_installed_distributions(self) -> List[DistributionInfo]:
         if self._known_dists:
@@ -306,6 +378,8 @@ class ImportUtilsPkgResources(ImportUtils):
         distributions = list()
         for dist_raw in distributions_raw:
             dist = self.__DistributionInfoProxyPkgResources(dist_raw)
+            if dist.name is None:
+                continue
             if 'vendor' in dist.lib_path_location:
                 continue
             distributions.append(dist)
@@ -322,14 +396,17 @@ class ImportUtilsPkgResources(ImportUtils):
             requirements = list()
             for req in requirements_raw:
                 try:
-                    req_fetched_dependency = self.get_distribution(req.project_name)
+                    req_fetched_requirement = self.get_requirement(str(req))
                 except self.InstalledDependencyNotFound:
                     continue
-                req_info = (RequirementInfo().Builder()
-                            .name(req_fetched_dependency.name)
-                            .enabled_extras(list(req.extras) if req.extras else list())
-                            ).build()
-                requirements.append(req_info)
+                # condition_extra = req.ex
+                # req_info = (RequirementInfo().Builder()
+                #             .name(req_fetched_requirement.name)
+                #             .enabled_extras(list(req.extras) if req.extras else list())
+                #             ).build()
+                requirements.append(req_fetched_requirement)
+            requirements = list(sorted(
+                requirements, key=lambda x: x.name_general))
             return requirements
         except self.__pkg_resources.DistributionNotFound:
             raise self.InstalledDependencyNotFound(name)
@@ -340,20 +417,28 @@ class ImportUtilsPkgResources(ImportUtils):
             self._name = dist_raw.project_name
             self._version = dist_raw.version
             self._lib_path_location = dist_raw.location
-            self._available_extras = list(dist_raw.extras)
+            available_extras = list()
+            try:
+                available_extras = list(dist_raw.extras)
+            except FileNotFoundError as e:
+                logger.info(
+                    "Failed to get extras for distribution %s: %s",
+                    dist_raw.project_name, str(e))
+            self._available_extras = available_extras
 
         @property
         def requirements(self) -> List['RequirementInfo']:
             if not self._requirements:
-                self._requirements = self.requirements_filter(
-                    enabled_extras=self.available_extras)
+                requirements = ImportUtilsPkgResources()._get_requirement_dependencies(
+                    self.name, self.available_extras)
+                self._requirements = requirements
             return super(self.__class__, self).requirements
 
-        def requirements_filter(self, enabled_extras: List[str] = None) \
-                -> List[RequirementInfo]:
-            requirements = ImportUtilsPkgResources()._get_requirement_dependencies(
-                self.name, enabled_extras)
-            return requirements
+        # def requirements_filter(self, enabled_extras: List[str] = None) \
+        #         -> List[RequirementInfo]:
+        #     requirements = ImportUtilsPkgResources()._get_requirement_dependencies(
+        #         self.name, enabled_extras)
+        #     return requirements
 
         def __str__(self):
             return super(self.__class__, self).__str__()
@@ -389,7 +474,9 @@ class ImportUtilsImportlib(ImportUtils):
         for dist_raw in distributions_raw:
             # dist_metadata = dist_raw.metadata
 
-            dist = self.__DistributionInfoProxyImportLib(dist_raw)
+            dist = self.__DistributionInfoProxyImportLib(self, dist_raw)
+            if dist.name is None:
+                continue
             # dist.name = str(dist_metadata['name'])
             # dist.version = str(dist_metadata['version'])
             # dist.available_extras = list(dist_metadata.get('provides_extra', list()))
@@ -401,29 +488,18 @@ class ImportUtilsImportlib(ImportUtils):
         self._known_dists = {d.name_general: d for d in distributions}
         return self.get_installed_distributions()
 
-    @staticmethod
-    def _get_requirement_dependencies(metadata) -> List[RequirementInfo]:
-        regex_get_name_extras_condition_extra = (
-            r"^\s*(?P<requirement_name>[\w\-]+)\s*"
-            r"(?:\[(?P<requirement_extras>.*)\])?"
-            r"(?:.*extra\s*==\s*\"(?P<condition_extra>[\w\-]+)\")?.*$")
-        requirements_raw = metadata.get_all('requires-dist', list())
+    def _get_requirement_dependencies(self, metadata) -> List[RequirementInfo]:
+        requirements_raw = metadata.get_all('requires-dist', list()) or [""][:-1]
         requirements = list()
         for req_raw in requirements_raw:
-            req_raw = str(req_raw)
-            match = dict(re.match(
-                regex_get_name_extras_condition_extra, req_raw).groupdict())
-            req_name = str(match['requirement_name'])
-            req_extras = list()
-            if match['requirement_extras'] is not None:
-                req_extras = str(match['requirement_extras']).split(',')
-            req_condition_extra = match['condition_extra']
-            requirement = (RequirementInfo().Builder()
-                           .name(req_name)
-                           .enabled_extras(req_extras)
-                           .condition_extra(req_condition_extra)
-                           ).build()
-            requirements.append(requirement)
+            try:
+                requirement_parsed = self.get_requirement(req_raw)
+            except (RequirementInfo.SatisfyException,
+                    self.InstalledDependencyNotFound):
+                continue
+            requirements.append(requirement_parsed)
+        requirements = list(sorted(
+            requirements, key=lambda x: x.name_general))
         return requirements
 
     class __DistributionInfoProxyImportLib(DistributionInfo):
@@ -431,8 +507,9 @@ class ImportUtilsImportlib(ImportUtils):
         Proxy class for DistributionInfo to allow lazy loading of metadata.
         """
 
-        def __init__(self, dist_raw):
+        def __init__(self, import_utils_lib: 'ImportUtilsImportlib', dist_raw):
             super(self.__class__, self).__init__()
+            self.__import_utils_lib = weakref.ref(import_utils_lib)
             self.__dist_raw = dist_raw
             self.__metadata = self.__dist_raw.metadata
 
@@ -460,12 +537,20 @@ class ImportUtilsImportlib(ImportUtils):
                 self._available_extras = self.__metadata.get_all('provides-extra', list())
             return super(self.__class__, self).available_extras
 
+        def get_import_utils_lib(self) -> 'ImportUtilsImportlib':
+            lib = self.__import_utils_lib()
+            if not lib:
+                raise Exception("ImportUtils was nulled (weak reference).")
+            return lib
+
         @property
         def requirements(
                 self, enabled_extras: List[str] = None) -> List['RequirementInfo']:
             if not self._requirements:
-                self._requirements = ImportUtilsImportlib._get_requirement_dependencies(
+                import_utils_lib = self.get_import_utils_lib()
+                requirements = import_utils_lib._get_requirement_dependencies(
                     self.__metadata)
+                self._requirements = requirements
             return super(self.__class__, self).requirements
 
         def __str__(self):
@@ -489,9 +574,11 @@ def main():
                      d.requirements)
         pass
         d1, d2 = list(util.get_requirement('fastapi[standard]') for util in utils)[:2]
-        if i == 0:
-            print(d1)
-            print(d2)
+        if d1 == d2:
+            pass
+        e1, e2 = list(util.get_distribution('setuptools') for util in utils)[:2]
+        if e1 == e2:
+            pass
     pass
 
 
