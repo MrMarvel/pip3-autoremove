@@ -1,49 +1,38 @@
 from __future__ import print_function
 
 import optparse
-import os
 import subprocess
 import sys
 
-import pip
-from pkg_resources import working_set, get_distribution, VersionConflict, DistributionNotFound
+from typing import List
 
-__version__ = '1.3.0'
-
+from extra import importlib_utils
 from extra.extra_utils import optional_distributions_required, get_requirements_graph
-from extra.graph_utils import get_graph_leafs, remove_graph_nodes
+from extra.graph_utils import get_graph_leaves, remove_graph_nodes
+from extra.importlib_utils import DistributionInfo
+
+from about_package import __version__
 
 try:
-    raw_input
+    # noinspection PyShadowingBuiltins,PyUnresolvedReferences
+    input = raw_input
 except NameError:
-    raw_input = input
-
-try:
-    ModuleNotFoundError
-except NameError:
-    ModuleNotFoundError = ImportError
-
-try:
-    # pip >= 10.0.0 hides main in pip._internal. We'll monkey patch what we need and hopefully this becomes available
-    # at some point.
-    from pip._internal import main, logger
-
-    pip.main = main
-    pip.logger = logger
-except (ModuleNotFoundError, ImportError):
     pass
 
-WHITELIST = ['pip', 'setuptools']
+import_utils_lib = importlib_utils.ImportUtilsFactory.create()
+
+WHITELIST = ['pip', 'packaging' if sys.version_info >= (3, 8) else 'setuptools',
+             'pip3-autoremove']
 
 
 def autoremove(names, yes=False, remove_extra=False):
-    names_to_remove = list(names)
-    dead_base_distributions = list_dead(names)
+    # names_to_remove = list(names)
+    dead_base_distributions = list_dead(names, remove_extras=remove_extra)
     dead_extras = set()
-    if remove_extra:
-        dead_extras = list_dead_extras(dead_base_distributions)
+    # if remove_extra:
+    #     dead_extras = list_dead_extras(dead_base_distributions)
     dead_distributions = dead_base_distributions | dead_extras
-    names_to_remove = list(map(lambda d: d.project_name, dead_distributions))
+    # names_to_remove = list(map(lambda d: d.project_name, dead_distributions))
     if dead_distributions and (yes or confirm("Uninstall (y/N)? ")):
         remove_dists(dead_distributions)
 
@@ -52,31 +41,37 @@ def list_dead(names, remove_extras=False):
     start = set()
     for name in names:
         try:
-            start.add(get_distribution(name))
-        except DistributionNotFound:
-            print("%s is not an installed pip module, skipping" % name, file=sys.stderr)
-        except VersionConflict:
-            print("%s is not the currently installed version, skipping" % name, file=sys.stderr)
-    graph = get_graph()
+            start.add(import_utils_lib.get_distribution(name))
+        except import_utils_lib.InstalledDependencyNotFound:
+            print("%s is not an installed pip module, skipping" % name,
+                  file=sys.stderr)
+    installed_distributions = import_utils_lib.get_installed_distributions()
+    graph = get_requirements_graph(import_utils_lib, remove_extras)
     dead = exclude_whitelist(find_all_dead(graph, start))
     if remove_extras:
         dead = exclude_whitelist(dead)
+    # b: importlib_utils.ImportUtils
     for d in start:
-        show_tree(d, dead, include_extras=True)
+        show_tree(d, dead, installed_distributions, include_extras=True)
     return dead
 
 
 def list_dead_extras(dead_base_distributions):
-    graph = get_requirements_graph()
-    dead_distribution_by_base = exclude_whitelist(find_all_dead(graph, dead_base_distributions))
+    installed_distributions = import_utils_lib.get_installed_distributions()
+    graph = get_requirements_graph(import_utils_lib, installed_distributions)
+    dead_distribution_by_base = exclude_whitelist(
+        find_all_dead(graph, dead_base_distributions))
     graph_without_base = remove_graph_nodes(graph, dead_distribution_by_base)
-    leaf_nodes = get_graph_leafs(graph_without_base)
+    leaf_nodes = get_graph_leaves(graph_without_base)
     leaf_extra_nodes = set()
     restricted_extras_like = ['dev', 'test', 'doc']
     for dist in dead_distribution_by_base:
-        allowed_extras = list(filter(lambda e: not any([restricted in e for restricted in restricted_extras_like]),
-                                     dist.extras))
-        optional_distributions = exclude_whitelist(optional_distributions_required(dist, allowed_extras))
+        allowed_extras = list(filter(
+            lambda e: not any(
+                [restricted in e for restricted in restricted_extras_like]
+            ), dist.available_extras))
+        optional_distributions = exclude_whitelist(optional_distributions_required(
+            import_utils_lib, dist, allowed_extras))
         for optional_dist in optional_distributions:
             if optional_dist in leaf_nodes:
                 leaf_extra_nodes.add(optional_dist)
@@ -86,10 +81,11 @@ def list_dead_extras(dead_base_distributions):
 
 
 def exclude_whitelist(dists):
-    return set(dist for dist in dists if dist.project_name not in WHITELIST)
+    return set(dist for dist in dists if dist.name_general not in WHITELIST)
 
 
-def show_tree(dist, dead, indent=0, visited=None, include_extras=False):
+def show_tree(dist, dead, installed_distributions, indent=0, visited=None,
+              include_extras=False):
     if visited is None:
         visited = set()
     if dist in visited:
@@ -97,9 +93,11 @@ def show_tree(dist, dead, indent=0, visited=None, include_extras=False):
     visited.add(dist)
     print(' ' * 4 * indent, end='')
     show_dist(dist)
-    for req in requires(dist):
+
+    for req in requires(dist, installed_distributions):
         if req in dead:
-            show_tree(req, dead, indent + 1, visited, include_extras=include_extras)
+            show_tree(req, dead, installed_distributions, indent + 1, visited,
+                      include_extras=include_extras)
 
 
 def find_all_dead(graph, start):
@@ -123,15 +121,15 @@ def fixed_point(f, x):
 
 
 def confirm(prompt):
-    return raw_input(prompt) == 'y'
+    return input(prompt) == 'y'
 
 
-def show_dist(dist):
-    print('%s %s (%s)' % (dist.project_name, dist.version, dist.location))
+def show_dist(dist: DistributionInfo):
+    print('%s %s (%s)' % (dist.name, dist.version, dist.lib_path_location))
 
 
-def show_freeze(dist):
-    print(dist.as_requirement())
+def show_freeze(dist: DistributionInfo):
+    print('%s==%s' % (dist.name, dist.version))
 
 
 def remove_dists(dists):
@@ -141,36 +139,42 @@ def remove_dists(dists):
     # else:
     #     pip_cmd = ['pip']
     pip_cmd = [sys.executable, '-m', 'pip']
-    subprocess.check_call(pip_cmd + ["uninstall", "-y"] + [d.project_name for d in dists])
+    subprocess.check_call(pip_cmd + ["uninstall", "-y"] + [d.name_general for d in dists])
 
 
-def get_graph():
-    g = dict((dist, set()) for dist in working_set.by_key.values())
+def get_graph(installed_distributions):
+    dist_map = dict(
+        (dist.name, dist) for dist in installed_distributions)
+    g = dict(
+        (dist, set()) for dist in dist_map.values())
     for dist in g.keys():
-        for req in requires(dist):
-            g[req].add(dist)
+        for req in requires(dist, installed_distributions):
+            g[dist_map[req.name]].add(dist)
     return g
 
 
-def requires(dist):
+def requires(dist: DistributionInfo, installed_dists: List[DistributionInfo]):
     required = []
-    for pkg in dist.requires():
+    installed_dependencies_names = list(
+        x.name.lower() for x in installed_dists)
+    requirements = dist.requirements_filter()
+    for pkg in requirements:
         try:
-            if pkg.marker is not None:
-                if pkg.name not in working_set.by_key:
-                    # print("Extra distribution %s not found in working_set, skipping" % str(pkg), file=sys.stderr)
-                    continue
-                if pkg.name == dist.project_name:
-                    # Recursive
-                    continue
-            required.append(get_distribution(pkg))
-        except VersionConflict as e:
-            print(e.report(), file=sys.stderr)
-            print("Redoing requirement with just package name...", file=sys.stderr)
-            required.append(get_distribution(pkg.project_name))
-        except DistributionNotFound as e:
-            print(e.report(), file=sys.stderr)
-            print("Skipping %s" % pkg.project_name, file=sys.stderr)
+            if pkg.name.lower() not in installed_dependencies_names:
+                # print("Extra distribution %s not found in working_set,
+                # skipping" % str(pkg), file=sys.stderr)
+                continue
+            if pkg.name.lower() == dist.name.lower():
+                # Recursive
+                continue
+            required.append(import_utils_lib.get_distribution(pkg.name_general))
+        # except pkg_resources.VersionConflict as e:
+        #     print(e.report(), file=sys.stderr)
+        #     print("Redoing requirement with just package name...", file=sys.stderr)
+        #     required.append(pkg_resources.get_distribution(pkg.project_name))
+        except import_utils_lib.InstalledDependencyNotFound as e:
+            print(e, file=sys.stderr)
+            print("Skipping %s" % pkg.name, file=sys.stderr)
     return required
 
 
@@ -194,7 +198,7 @@ def main(argv=None):
                     if len(line) < 1:
                         break
                     file_args.append(line)
-                    line = f.readline().rstrip('\n').strip()
+                    line = str(f.readline()).rstrip('\n').strip()
             total_args += file_args
             autoremove(total_args, yes=opts.yes, remove_extra=opts.include_extras)
         except FileNotFoundError:
@@ -211,11 +215,12 @@ def get_leaves(graph):
 
 
 def list_leaves(freeze=False, include_extras=False):
-    graph = get_graph()
-    if include_extras:
-        graph = get_requirements_graph(include_extras)
-    leafs = list(get_leaves(graph))
-    for node in leafs:
+    # installed_distributions = import_utils_lib.get_installed_distributions()
+    graph = get_requirements_graph(
+        import_utils_lib, include_extras)
+
+    leaves = get_graph_leaves(graph)
+    for node in leaves:
         if freeze:
             show_freeze(node)
         else:
@@ -241,7 +246,8 @@ def create_parser():
         help="include in search all extras (like jsonschema[format]).")
     parser.add_option(
         '-f', '--freeze', action='store_true', default=False,
-        help="list leaves (packages which are not used by any others) in file_test.txt format")
+        help="list leaves (packages which are not used by any others) in "
+             "file_test.txt format")
     parser.add_option(
         '-r', '--read-file', action='store_true', default=False,
         help="read packages from file like file_test.txt")
@@ -249,4 +255,7 @@ def create_parser():
 
 
 if __name__ == '__main__':
+    # profiling_test.make_all_profiling_in_module(globals())
+    # profiling_test.make_all_profiling_in_module(vars(importlib_utils))
+    # profiling_test.make_all_profiling_in_module(vars(extra_utils))
     main()
