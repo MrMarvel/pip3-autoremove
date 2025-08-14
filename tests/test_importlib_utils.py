@@ -19,6 +19,10 @@ class TestImportUtils(TestCase):
             "Python version: \"%s\"" % '.'.join(str(x) for x in sys.version_info[:3]))
 
     def test1_import_implementation(self):
+        try:
+            import importlib.metadata
+        except ImportError:
+            self.skipTest("importlib is not available in this Python version")
         util = importlib_utils.ImportUtilsFactory.create()
         self.assertIsInstance(util, ImportUtils)
         self.assertIsInstance(util, ImportUtilsImportlib)
