@@ -19,7 +19,7 @@ jobs:
         run: |
           python setup.py sdist bdist_wheel
       - name: Upload build to action .tar.gz
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: build_items
           path: dist/**
@@ -30,7 +30,7 @@ jobs:
     steps:
         - uses: actions/checkout@v4
         - name: Download build
-          uses: actions/download-artifact@v2
+          uses: actions/download-artifact@v4
           with:
             name: build_items
             path: build
@@ -54,7 +54,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Download build
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4
         with:
           name: build_items
           path: build
