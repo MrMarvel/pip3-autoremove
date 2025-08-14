@@ -2,7 +2,7 @@ name: Working Tests
 
 on:
   - push
-  - pull_request
+  # - pull_request
   # push:
   #   branches: [ dev ]
   # pull_request:
