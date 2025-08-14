@@ -98,11 +98,10 @@ class TestPipAutoremove(TestCase):
 
     def test4_locks_on_remove(self):
         if os.name != 'nt':
-            logger.info("Windows-specific test")
-            return
+            self.skipTest("Windows-specific test")
         if isinstance(self._import_utils, importlib_utils.ImportUtilsPkgResources):
-            logger.info("Only for importlib implementation. Pkg_resources not guaranteed")
-            return
+            self.skipTest("Only for importlib implementation. "
+                          "Pkg_resources not guaranteed")
         installing_packages = ["pywin32"]
         for name in installing_packages:
             self.__install_dist(name)
