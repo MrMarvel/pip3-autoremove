@@ -44,7 +44,8 @@ jobs:
           with:
             artifacts: "build/*.tar.gz, build/*.whl"
             allowUpdates: true
-        # Use always() to always run this step to publish test results when there are test failures
+        # Use always() to always run this step to publish test results when there
+        # are test failures
   upload_to_pypi:
     needs: upload_to_tag
     runs-on: ubuntu-latest
@@ -61,7 +62,9 @@ jobs:
 #        run: |
 #          cd build
 #          for file in *.tar.gz; do mv "$file" "${file%.tar.gz}-$RANDOM.tar.gz"; done
-#          for file in *-py2.py3-none-any.whl; do mv "$file" "${file%-py2.py3-none-any.whl}-$RANDOM-py2.py3-none-any.whl"; done
+#          for file in *-py2.py3-none-any.whl;
+#          do mv "$file" "${file%-py2.py3-none-any.whl}-$RANDOM-py2.py3-none-any.whl";
+#          done
       - name: Publish package to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
