@@ -1,7 +1,4 @@
-from pkg_resources import VersionConflict, DistributionNotFound
-import importlib.metadata
-
-from pip_provider import get_distribution, list_installed_distributions
+from pkg_resources import get_distribution, VersionConflict, DistributionNotFound, working_set
 
 restricted_extras_like = ['dev', 'test', 'doc']
 
@@ -12,13 +9,12 @@ def _is_restricted_extra(extra):
 
 def _get_dist(requirement):
     """Return the distribution matching the given requirement."""
-    distributions = list_installed_distributions()
-    if requirement.name not in distributions:
-        if requirement.key not in distributions:
+    if requirement.name not in working_set.by_key:
+        if requirement.key not in working_set.by_key:
             raise DistributionNotFound(requirement.name)
     required_dist = None
     try:
-        required_dist = get_distribution(requirement.name)
+        required_dist = get_distribution(requirement)
     except (VersionConflict, DistributionNotFound) as _:
         pass
 
@@ -65,8 +61,7 @@ def optional_distributions_required(
 
 
 def get_requirements_graph(extra_required=False):
-    distributions = list_installed_distributions()
-    g = dict((dist, set()) for dist in distributions)
+    g = dict((dist, set()) for dist in working_set.by_key.values())
     for dist in g.keys():
         dist_requires_list = distributions_required(dist)
         for req in dist_requires_list:
