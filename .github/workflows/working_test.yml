@@ -18,4 +18,4 @@ jobs:
         docker build -t tox .
     - name: Run tests
       run: |
-        docker run --name TOX --rm tox tox p
+        docker run --name TOX --rm tox tox p --skip-pkg-install
