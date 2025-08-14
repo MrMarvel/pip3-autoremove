@@ -21,7 +21,8 @@ except NameError:
 
 import_utils_lib = importlib_utils.ImportUtilsFactory.create()
 
-WHITELIST = ['pip', 'packaging']
+WHITELIST = ['pip', 'packaging' if sys.version_info >= (3, 8) else 'setuptools',
+             'pip3-autoremove']
 
 
 def autoremove(names, yes=False, remove_extra=False):
