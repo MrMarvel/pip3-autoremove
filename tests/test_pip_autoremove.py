@@ -153,6 +153,7 @@ class TestPipAutoremove(TestCase):
         for name in extra_installed:
             assert not self.__has_dist(name)
         pass
+
     def test_show_extras2(self):
         """
         Case: matplotlib install and does not show somehow with -ef
@@ -160,22 +161,23 @@ class TestPipAutoremove(TestCase):
         # check version of python
         if sys.version[0] < '3':
             # Console wrapper doesn't work well on python 2.7
-            return
+            self.skipTest("Console wrapper doesn't work well on python 2.7")
         installing_packages = ["matplotlib"]
         for name in installing_packages:
-            self.install_dist(name)
+            self.__install_dist(name)
         for name in installing_packages:
-            assert self.has_dist(name)
+            assert self.__has_dist(name)
 
         console_output_stream = StringIO()
         with STDWrapper(stdout=console_output_stream):
-            pip_autoremove.main(['-ef'])
+            self.__pip_autoremove_main(['-ef'])
         console_output = console_output_stream.getvalue()
         print(console_output)
         for package in installing_packages:
             assert package in console_output
         self.__pip_autoremove_main(['-y', '-e'] + installing_packages)
         pass
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
