@@ -12,6 +12,7 @@ setup(
     py_modules=["pip_autoremove", "about_package"],
     license='Apache License 2.0',
     url='https://github.com/mrmarvel/pip3-autoremove',
+    requires_python='>=3.0',
     classifiers=[
         'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
