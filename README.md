@@ -1,9 +1,7 @@
 # pip3-autoremove
 
-[![image](https://img.shields.io/pypi/dm/pip3-autoremove.svg)](https://pypi.python.org/pypi/pip3-autoremove/)
-
 [![image](https://img.shields.io/pypi/v/pip3-autoremove.svg)](https://pypi.python.org/pypi/pip3-autoremove/)
-
+[![image](https://img.shields.io/pypi/dm/pip3-autoremove.svg)](https://pypi.python.org/pypi/pip3-autoremove/)
 [![image](https://img.shields.io/pypi/l/pip3-autoremove.svg)](https://pypi.python.org/pypi/pip3-autoremove/)
 
 This project has been rewritten from scratch to support new importlib implementation 
