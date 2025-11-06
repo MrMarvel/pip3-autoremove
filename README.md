@@ -43,3 +43,13 @@ py -m pip_autoremove -ef
 ```
 
 To remove the globally installed package, add "sudo" before the pip-autoremove command.
+
+## ⭐ Support
+You can support the project by giving a ⭐ to this repository (top right of this page).
+<a href="https://www.star-history.com/#MrMarvel/pip3-autoremove&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=MrMarvel/pip3-autoremove&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=MrMarvel/pip3-autoremove&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=MrMarvel/pip3-autoremove&type=date&legend=top-left" />
+ </picture>
+</a>
