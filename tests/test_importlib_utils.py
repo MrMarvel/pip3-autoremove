@@ -49,8 +49,15 @@ class TestImportUtils(TestCase):
 
 def main():
     logging.basicConfig(level=logging.INFO)
-    tests = TestImportUtils()
-    tests.test2_setuptools()
+    selected_tests = [
+        # "test1_import_implementation",
+        # "test2_setuptools",
+    ]
+    if selected_tests:
+        suite = unittest.TestSuite(TestImportUtils(name) for name in selected_tests)
+    else:
+        suite = unittest.TestLoader().loadTestsFromTestCase(TestPipAutoremove)
+    unittest.TextTestRunner(verbosity=2).run(suite)
 
 
 if __name__ == '__main__':
