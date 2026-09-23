@@ -57,7 +57,7 @@ def main():
     if selected_tests:
         suite = unittest.TestSuite(TestImportUtils(name) for name in selected_tests)
     else:
-        suite = unittest.TestLoader().loadTestsFromTestCase(TestPipAutoremove)
+        suite = unittest.TestLoader().loadTestsFromTestCase(TestImportUtils)
     unittest.TextTestRunner(verbosity=2).run(suite)
 
 
