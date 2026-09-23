@@ -181,25 +181,18 @@ class TestPipAutoremove(TestCase):
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    tests = TestPipAutoremove()
-    loader = unittest.TestLoader()
-    all_tests_names = [t._testMethodName
-                       for t in loader.loadTestsFromTestCase(TestPipAutoremove)][3:3 + 2]
-    tests_to_run = all_tests_names
-    for test in tests_to_run:
-        logger.info("Running test: \"%s\"" % test)
-        tests.setUp()
-        getattr(tests, test)()
-        tests.tearDown()
-    # tests.setUp()
-    # tests.test1_find_all_dead()
-    # tests.setUp()
-    # tests.test2_main()
-    # tests.setUp()
-    # tests.test3_file()
-    # tests.setUp()
-    # tests.test4_locks_on_remove()
-    # tests.setUp()
-    # tests.test5_remove_extras()
-    # tests.setUp()
-    # tests.test6_show_extras()
+    selected_tests = [
+        # "test1_find_all_dead",
+        # "test2_main",
+        # "test3_file",
+        # "test4_locks_on_remove",
+        # "test5_remove_extras",
+        # "test6_show_extras",
+        # "test_show_extras2",
+    ]
+    if selected_tests:
+        suite = unittest.TestSuite(TestPipAutoremove(name) for name in selected_tests)
+    else:
+        suite = unittest.TestLoader().loadTestsFromTestCase(TestPipAutoremove)
+    if not unittest.TextTestRunner(verbosity=2).run(suite).wasSuccessful():
+        raise SystemExit(1)
