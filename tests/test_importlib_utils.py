@@ -1,5 +1,6 @@
 import logging
 import sys
+import unittest
 from unittest import TestCase, skipUnless
 
 from extra import importlib_utils
