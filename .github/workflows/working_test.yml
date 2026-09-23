@@ -1,12 +1,14 @@
 name: Working Tests
 
 on:
-  - push
-  # - pull_request
-  # push:
-  #   branches: [ dev ]
-  # pull_request:
-  #   branches: [ dev ]
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [dev]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   run_tests:
