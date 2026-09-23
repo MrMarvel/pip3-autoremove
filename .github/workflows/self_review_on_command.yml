@@ -20,8 +20,8 @@ jobs:
             const commenter = context.payload.comment.user.login;
             const association = context.payload.comment.author_association;
 
-            // 1. Allow only OWNER, MEMBER or COLLABORATOR
-            const allowedAssociations = ['OWNER', 'MEMBER', 'COLLABORATOR'];
+            // 1. Allow only some from OWNER, MEMBER or COLLABORATOR
+            const allowedAssociations = ['OWNER'];
             if (!allowedAssociations.includes(association)) {
               core.info(`User ${commenter} is not authorized (association: ${association}). Skipping.`);
               return;
@@ -35,4 +35,53 @@ jobs:
               pull_number: prNumber,
               body: `✅ Self review requested by @${commenter}`,
               event: 'APPROVE'
+            });
+  self-review-cancel:
+    if: >
+      github.event.issue.pull_request &&
+      startsWith(github.event.comment.body, '/self-review-cancel')
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Check permission and dismiss review
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const commenter = context.payload.comment.user.login;
+            const association = context.payload.comment.author_association;
+            
+            // 1. Allow only some from OWNER, MEMBER or COLLABORATOR
+            const allowedAssociations = ['OWNER'];
+            if (!allowedAssociations.includes(association)) {
+              core.info(`User ${commenter} is not authorized (association: ${association}). Skipping.`);
+              return;
+            }
+            
+            const prNumber = context.issue.number;
+            const botLogin = 'github-actions[bot]';
+            
+            // 2. List all reviews on the PR and find the bot's APPROVED review
+            const reviews = await github.paginate(github.rest.pulls.listReviews, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber,
+            });
+            
+            const botApprovedReview = reviews
+              .filter(r => r.user.login === botLogin && r.state === 'APPROVED')
+              .pop(); // last one
+            
+            if (!botApprovedReview) {
+              core.info('No APPROVED review from the bot found. Nothing to dismiss.');
+              return;
+            }
+            
+            // 3. Dismiss that review
+            await github.rest.pulls.dismissReview({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber,
+              review_id: botApprovedReview.id,
+              message: `❌ Self review canceled by @${commenter}`,
             });
