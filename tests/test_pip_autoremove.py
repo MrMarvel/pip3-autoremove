@@ -194,4 +194,5 @@ if __name__ == "__main__":
         suite = unittest.TestSuite(TestPipAutoremove(name) for name in selected_tests)
     else:
         suite = unittest.TestLoader().loadTestsFromTestCase(TestPipAutoremove)
-    unittest.TextTestRunner(verbosity=2).run(suite)
+    if not unittest.TextTestRunner(verbosity=2).run(suite).wasSuccessful():
+        raise SystemExit(1)

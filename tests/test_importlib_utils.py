@@ -58,7 +58,8 @@ def main():
         suite = unittest.TestSuite(TestImportUtils(name) for name in selected_tests)
     else:
         suite = unittest.TestLoader().loadTestsFromTestCase(TestImportUtils)
-    unittest.TextTestRunner(verbosity=2).run(suite)
+    if not unittest.TextTestRunner(verbosity=2).run(suite).wasSuccessful():
+        raise SystemExit(1)
 
 
 if __name__ == '__main__':
