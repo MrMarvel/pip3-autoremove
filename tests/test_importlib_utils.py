@@ -1,6 +1,7 @@
 import logging
 import sys
-from unittest import TestCase
+import unittest
+from unittest import TestCase, skipUnless
 
 from extra import importlib_utils
 from extra.importlib_utils import ImportUtilsPkgResources, ImportUtilsImportlib, \
@@ -27,8 +28,12 @@ class TestImportUtils(TestCase):
         self.assertIsInstance(util, ImportUtils)
         self.assertIsInstance(util, ImportUtilsImportlib)
 
+    @skipUnless(sys.version_info < (3, 8), "This code is never used if importlib.metadata exists")
     @need_dists(['setuptools'], remove_after=True)
     def test2_setuptools(self):
+        # This test is known to fail on Python 3.9 or higher, as that installs
+        # setuptools 82.0.0 or higher, and that version removed the auxiliary
+        # pkg_resources module that is required by ImportUtilsPkgResources.
         util1 = ImportUtilsPkgResources()
         try:
             util2 = ImportUtilsImportlib()
@@ -45,8 +50,16 @@ class TestImportUtils(TestCase):
 
 def main():
     logging.basicConfig(level=logging.INFO)
-    tests = TestImportUtils()
-    tests.test2_setuptools()
+    selected_tests = [
+        # "test1_import_implementation",
+        # "test2_setuptools",
+    ]
+    if selected_tests:
+        suite = unittest.TestSuite(TestImportUtils(name) for name in selected_tests)
+    else:
+        suite = unittest.TestLoader().loadTestsFromTestCase(TestImportUtils)
+    if not unittest.TextTestRunner(verbosity=2).run(suite).wasSuccessful():
+        raise SystemExit(1)
 
 
 if __name__ == '__main__':

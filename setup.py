@@ -23,7 +23,7 @@ setup(
     ],
     install_requires=[
         'pip',
-        'packaging; python_version >= "3.8"',
+        'packaging',
         'setuptools; python_version < "3.8"',
     ]
 )
