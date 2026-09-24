@@ -113,11 +113,13 @@ def find_all_dead(graph, start):
 
 
 def find_dead(graph, dead):
-    def is_killed_by_us(node):
-        succ = graph[node]
-        return succ and not (succ - dead)
-
-    return dead | set(filter(is_killed_by_us, graph))
+    def has_children_and_all_child_nodes_dead(node):
+        node_children = graph[node]
+        if not node_children:
+            return False
+        return all(child in dead for child in node_children)
+    
+    return dead | set(filter(has_children_and_all_child_nodes_dead, graph))
 
 
 def fixed_point(f, x):
