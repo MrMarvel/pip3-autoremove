@@ -101,7 +101,7 @@ def show_tree(dist, dead, installed_distributions, indent=0, visited=None,
     visited.add(dist)
     print(' ' * 4 * indent, end='')
     show_dist(dist)
-
+    
     for req in requires(dist, installed_distributions):
         if req in dead:
             show_tree(req, dead, installed_distributions, indent + 1, visited,
@@ -231,7 +231,7 @@ def main(argv=None):
 def get_leaves(graph):
     def is_leaf(node):
         return not graph[node]
-
+    
     return filter(is_leaf, graph)
 
 
@@ -239,7 +239,7 @@ def list_leaves(freeze=False, include_extras=False):
     # installed_distributions = import_utils_lib.get_installed_distributions()
     graph = get_requirements_graph(
         import_utils_lib, include_extras)
-
+    
     leaves = get_graph_leaves(graph)
     for node in leaves:
         if freeze:
@@ -258,7 +258,7 @@ def create_parser():
         help="list unused dependencies, but don't uninstall them.")
     parser.add_option(
         '-L', '--leaves', action='store_true', default=False,
-        help="list leaves (packages which are not used by any others).")
+        help="list leaves (packages, which are not used by any others).")
     parser.add_option(
         '-y', '--yes', action='store_true', default=False,
         help="don't ask for confirmation of uninstall deletions.")
@@ -267,7 +267,7 @@ def create_parser():
         help="include in search all extras (like jsonschema[format]).")
     parser.add_option(
         '-f', '--freeze', action='store_true', default=False,
-        help="list leaves (packages which are not used by any others) in "
+        help="list leaves (packages, which are not used by any others) in "
              "file_test.txt format")
     parser.add_option(
         '-r', '--read-file', action='store', default=False, dest='read_file', metavar='<FILE>',
