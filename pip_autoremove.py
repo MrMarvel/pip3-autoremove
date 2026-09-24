@@ -4,7 +4,7 @@ import optparse
 import subprocess
 import sys
 
-from typing import List
+from typing import List, Union
 
 from extra import importlib_utils
 from extra.extra_utils import optional_distributions_required, get_requirements_graph
@@ -21,18 +21,26 @@ except NameError:
 
 import_utils_lib = importlib_utils.ImportUtilsFactory.create()
 
-WHITELIST = (['pip', 'packaging'] + ([] if sys.version_info >= (3, 8) else ['setuptools']) +
-             ['pip3-autoremove'])
+WHITELIST_GLOBAL = (['pip', 'packaging'] + ([] if sys.version_info >= (3, 8) else ['setuptools']) +
+                    ['pip3-autoremove'])
 
 
-def autoremove(names, yes=False, remove_extra=False):
-    # names_to_remove = list(names)
-    dead_base_distributions = list_dead(names, remove_extras=remove_extra)
-    dead_extras = set()
-    # if remove_extra:
-    #     dead_extras = list_dead_extras(dead_base_distributions)
+def exclude_whitelist_from(dists: set[DistributionInfo], whitelist: list[str]):
+    for package_name in whitelist:
+        try:
+            dist = import_utils_lib.get_distribution(package_name)
+            dists.discard(dist)
+        except import_utils_lib.InstalledDependencyNotFound:
+            print("%s is not an installed pip module, skipping" % package_name,
+                  file=sys.stderr)
+
+
+def autoremove(names, yes=False, remove_extra=False, whitelist: Union[list[str], None] = None):
+    dead_base_distributions: set[DistributionInfo] = list_dead(names, remove_extras=remove_extra)
+    dead_extras: set[DistributionInfo] = set()
     dead_distributions = dead_base_distributions | dead_extras
-    # names_to_remove = list(map(lambda d: d.project_name, dead_distributions))
+    if whitelist:
+        exclude_whitelist_from(dead_distributions, whitelist)
     if dead_distributions and (yes or confirm("Uninstall (y/N)? ")):
         remove_dists(dead_distributions)
 
@@ -81,7 +89,7 @@ def list_dead_extras(dead_base_distributions):
 
 
 def exclude_whitelist(dists):
-    return set(dist for dist in dists if dist.name_general not in WHITELIST)
+    return set(dist for dist in dists if dist.name_general not in WHITELIST_GLOBAL)
 
 
 def show_tree(dist, dead, installed_distributions, indent=0, visited=None,
@@ -178,33 +186,46 @@ def requires(dist: DistributionInfo, installed_dists: List[DistributionInfo]):
     return required
 
 
+def collect_packages_from_file(filename):
+    packages_name = []
+    try:
+        with open(filename, mode='r') as f:
+            line = f.readline().rstrip('\n')
+            while line:
+                if len(line) < 1:
+                    break
+                packages_name.append(line)
+                line = str(f.readline()).rstrip('\n').strip()
+    except FileNotFoundError:
+        print('File \'%s\' not found!' % filename)
+    return packages_name
+
+
 def main(argv=None):
     parser = create_parser()
+    if argv is None:
+        argv = sys.argv[1:]
     (opts, args) = parser.parse_args(argv)
     if opts.leaves or opts.freeze:
         list_leaves(opts.freeze, include_extras=opts.include_extras)
     elif opts.list:
         list_dead(args, remove_extras=opts.include_extras)
-    elif len(args) == 0:
+    elif len(argv) < 1:
         parser.print_help()
-    elif opts.read_file:
-        filename = args[0]
-        total_args = args[1:]
-        file_args = []
-        try:
-            with open(filename, mode='r') as f:
-                line = f.readline().rstrip('\n')
-                while line:
-                    if len(line) < 1:
-                        break
-                    file_args.append(line)
-                    line = str(f.readline()).rstrip('\n').strip()
-            total_args += file_args
-            autoremove(total_args, yes=opts.yes, remove_extra=opts.include_extras)
-        except FileNotFoundError:
-            print('File \'%s\' not found!' % filename)
     else:
-        autoremove(args, yes=opts.yes, remove_extra=opts.include_extras)
+        packages_name_to_remove = args
+        packages_whitelist: list[str] = []
+        if opts.read_file:
+            filename = opts.read_file
+            for package in collect_packages_from_file(filename):
+                if package in packages_name_to_remove:
+                    continue
+                packages_name_to_remove.append(package)
+        if opts.keep_file:
+            filename = opts.keep_file
+            packages_whitelist = collect_packages_from_file(filename)
+        autoremove(
+            packages_name_to_remove, yes=opts.yes, remove_extra=opts.include_extras, whitelist=packages_whitelist)
 
 
 def get_leaves(graph):
@@ -249,8 +270,12 @@ def create_parser():
         help="list leaves (packages which are not used by any others) in "
              "file_test.txt format")
     parser.add_option(
-        '-r', '--read-file', action='store_true', default=False,
+        '-r', '--read-file', action='store', default=False, dest='read_file', metavar='<FILE>',
         help="read packages from file like file_test.txt")
+    parser.add_option(
+        '-k', '--keep-file', action='store', default=None, dest='keep_file', metavar='<FILE>',
+        help="read whitelist packages from file like keep_requirements.txt"
+    )
     return parser
 
 
