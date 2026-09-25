@@ -29,7 +29,7 @@ Usage:
 > Helps with managing packages like `jupyterlab`.
 >
 > `pip-autoremove -y -e jupyterlab` to remove packages including their extra packages (recursive).
-
+> 
 > `pip-autoremove -r requirements.txt` using listing of packages
 
 You can call module directly with Python:
@@ -51,7 +51,7 @@ sudo pip install pip3-autoremove
 
 ## Full list of options:
 
-```kotlin
+```ts
 Usage: pip_autoremove.py [OPTION]... [NAME]...
 
 Options:
