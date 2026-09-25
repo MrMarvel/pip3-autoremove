@@ -3,7 +3,7 @@ import os
 import sys
 import unittest
 from io import StringIO
-from typing import Sequence
+from typing import Sequence, List
 from unittest import TestCase
 
 from extra import importlib_utils
@@ -17,11 +17,11 @@ logger = logging.getLogger(__name__)
 
 class TestPipAutoremove(TestCase):
     logging.basicConfig(level=logging.INFO)
-
+    
     def __init__(self, methodName="runTest"):
         super(self.__class__, self).__init__(methodName)
         self._import_utils = importlib_utils.ImportUtilsFactory.create()
-
+    
     def __has_dist(self, req):
         try:
             self._import_utils.get_requirement(req)
@@ -29,33 +29,33 @@ class TestPipAutoremove(TestCase):
         except importlib_utils.ImportUtils.InstalledDependencyNotFound:
             return False
         return True
-
+    
     def __install_dist(self, req):
         logger.info("Installing distribution \"%s\"." % req)
         install_utils.install_dist(req)
         self.__clear_caches()
-
+    
     @classmethod
     def setUpClass(cls):
         logger.info(
             "Python version: \"%s\"" % '.'.join(str(x) for x in sys.version_info[:3]))
-
+    
     def setUp(self):
         logger.info("Test \"%s\"" % self._testMethodName)
         self.__clear_caches()
-
+    
     def tearDown(self):
         logger.info("Tear down \"%s\"" % self._testMethodName)
         self.__clear_caches()
-
+    
     def __clear_caches(self):
         self._import_utils.clear_known_distributions()
         pip_autoremove.import_utils_lib.clear_known_distributions()
-
+    
     def __pip_autoremove_main(self, args: Sequence[str]):
         pip_autoremove.main(args)
         self.__clear_caches()
-
+    
     def test1_find_all_dead(self):
         graph = {
             'Flask': {},
@@ -70,32 +70,26 @@ class TestPipAutoremove(TestCase):
         expected = {"Flask", "Jinja2", "MarkupSafe", "Werkzeug", "itsdangerous"}
         dead = pip_autoremove.find_all_dead(graph, start)
         assert dead == expected
-
+    
     def test2_main(self):
         expected = ["Flask", "Jinja2", "MarkupSafe", "Werkzeug", "itsdangerous"]
-
-        for name in expected:
-            self.__install_dist(name)
-
-        for name in expected:
-            assert self.__has_dist(name)
-
+        self._assert_install_packages(expected)
+        
         for name in expected:
             self.__pip_autoremove_main(['-y', name])
         for name in expected:
             assert not self.__has_dist(name)
-
+    
     def test3_file(self):
         expected = ["cowsay"]
-        for name in expected:
-            self.__install_dist(name)
+        self._assert_install_packages(expected)
         try:
             self.__pip_autoremove_main(['-r', 'tests/file_test.txt', '-y'])
         except Exception as e:
             assert not e
         for name in expected:
             assert not self.__has_dist(name)
-
+    
     def test4_locks_on_remove(self):
         if os.name != 'nt':
             self.skipTest("Windows-specific test")
@@ -103,22 +97,18 @@ class TestPipAutoremove(TestCase):
             self.skipTest("Only for importlib implementation. "
                           "Pkg_resources not guaranteed")
         installing_packages = ["pywin32"]
-        for name in installing_packages:
-            self.__install_dist(name)
+        self._assert_install_packages(installing_packages)
         try:
             self.__pip_autoremove_main(['-y'] + installing_packages)
         except Exception as e:
             assert not e
         for name in installing_packages:
             assert not self.__has_dist(name)
-
+    
     def test5_remove_extras(self):
         installing_packages = ["jsonschema[format]"]
         extra_installed = ["webcolors"]
-        for name in installing_packages:
-            self.__install_dist(name)
-        for name in installing_packages + extra_installed:
-            assert self.__has_dist(name), "Package \"%s\" was not installed." % name
+        self._assert_install_packages(installing_packages)
         try:
             self.__pip_autoremove_main(['-y', '-e'] + installing_packages)
         except Exception as e:
@@ -129,7 +119,7 @@ class TestPipAutoremove(TestCase):
             assert not self.__has_dist(name), ("Extra package \"%s\" was not removed."
                                                % name)
         pass
-
+    
     def test6_show_extras(self):
         # check version of python
         if sys.version[0] < '3':
@@ -137,11 +127,8 @@ class TestPipAutoremove(TestCase):
             return
         installing_packages = ["jsonschema[format]"]
         extra_installed = ["webcolors"]
-        for name in installing_packages:
-            self.__install_dist(name)
-        for name in installing_packages:
-            assert self.__has_dist(name)
-
+        self._assert_install_packages(installing_packages)
+        
         console_output = StringIO()
         with STDWrapper(stdout=console_output):
             self.__pip_autoremove_main(['-f', '-e'])
@@ -153,8 +140,8 @@ class TestPipAutoremove(TestCase):
         for name in extra_installed:
             assert not self.__has_dist(name)
         pass
-
-    def test_show_extras2(self):
+    
+    def test7_show_extras2(self):
         """
         Case: matplotlib install and does not show somehow with -ef
         """
@@ -163,11 +150,8 @@ class TestPipAutoremove(TestCase):
             # Console wrapper doesn't work well on python 2.7
             self.skipTest("Console wrapper doesn't work well on python 2.7")
         installing_packages = ["matplotlib"]
-        for name in installing_packages:
-            self.__install_dist(name)
-        for name in installing_packages:
-            assert self.__has_dist(name)
-
+        self._assert_install_packages(installing_packages)
+        
         console_output_stream = StringIO()
         with STDWrapper(stdout=console_output_stream):
             self.__pip_autoremove_main(['-ef'])
@@ -177,6 +161,28 @@ class TestPipAutoremove(TestCase):
             assert package in console_output
         self.__pip_autoremove_main(['-y', '-e'] + installing_packages)
         pass
+    
+    def _assert_install_packages(self, packages: List[str]):
+        for name in packages:
+            self.__install_dist(name)
+        for name in packages:
+            assert self.__has_dist(name), "Package \"%s\" was not installed." % name
+    
+    def test9_keep(self):
+        installing_packages = ["cowsay"]
+        expected_whitelisted_packages = ["cowsay"]
+        self._assert_install_packages(installing_packages)
+        self.__pip_autoremove_main(['-y', '--keep', 'cowsay'] + installing_packages)
+        for name in expected_whitelisted_packages:
+            assert self.__has_dist(name), "Package \"%s\" was removed but should be kept." % name
+    
+    def test8_keep_files(self):
+        installing_packages = ["cowsay"]
+        expected_whitelisted_packages = ["cowsay"]
+        self._assert_install_packages(installing_packages)
+        self.__pip_autoremove_main(['-y', '--keep-file', 'tests/file_test.txt'] + installing_packages)
+        for name in expected_whitelisted_packages:
+            assert self.__has_dist(name), "Package \"%s\" was removed but should be kept." % name
 
 
 if __name__ == "__main__":

@@ -18,7 +18,7 @@ Supports Python3 and Python2.7 (at least old builds).
 
 This version also can remove packages listed in file like 'requirements.txt'.
 
-## Special Feature!
+## Usage
 
 You can list and remove packages including their optional dependencies!
 
@@ -29,6 +29,17 @@ Usage:
 > Helps with managing packages like `jupyterlab`.
 >
 > `pip-autoremove -y -e jupyterlab` to remove packages including their extra packages (recursive).
+> 
+> `pip-autoremove -r requirements.txt` using listing of packages
+
+You can call module directly with Python:
+
+```
+pip-autoremove
+pip3-autoremove
+py -m pip_autoremove
+```
+
 
 ## How to install
 
@@ -38,13 +49,28 @@ Usage:
 sudo pip install pip3-autoremove
 ```
 
-## Usage
+## Full list of options:
 
-```
-pip-autoremove packages-to-uninstall
-pip3-autoremove packages-to-uninstall
-pip-autoremove -r requirements.txt
-py -m pip_autoremove -ef
+```ts
+Usage: pip_autoremove.py [OPTION]... [NAME]...
+
+Options:
+  --version             show program's version number and exit
+  -h, --help            show this help message and exit
+  -l, --list            list unused dependencies, but don't uninstall them.
+  -L, --leaves          list leaves (packages, which are not used by any
+                        others).
+  -y, --yes             don't ask for confirmation of uninstall deletions.
+  -e, --include-extras  include in search all extras (like
+                        jsonschema[format]).
+  -f, --freeze          list leaves (packages, which are not used by any
+                        others) in file_test.txt format
+  -r <FILE>, --read-file=<FILE>
+                        read packages from file like file_test.txt
+  -k <FILE>, --keep-file=<FILE>
+                        read whitelist packages from file like
+                        keep_requirements.txt
+  --keep=<PACKAGE>,...  keep package(s) from uninstalling
 ```
 
 To remove the globally installed package, add "sudo" before the pip-autoremove command.
