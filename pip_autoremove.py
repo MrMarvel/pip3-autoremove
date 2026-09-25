@@ -4,7 +4,7 @@ import optparse
 import subprocess
 import sys
 
-from typing import List, Union
+from typing import List, Union, Set
 
 from extra import importlib_utils
 from extra.extra_utils import optional_distributions_required, get_requirements_graph
@@ -25,7 +25,7 @@ WHITELIST_GLOBAL = (['pip', 'packaging'] + ([] if sys.version_info >= (3, 8) els
                     ['pip3-autoremove'])
 
 
-def exclude_whitelist_from(dists: set[DistributionInfo], whitelist: list[str]):
+def exclude_whitelist_from(dists: Set[DistributionInfo], whitelist: List[str]):
     for package_name in whitelist:
         try:
             dist = import_utils_lib.get_distribution(package_name)
@@ -35,9 +35,9 @@ def exclude_whitelist_from(dists: set[DistributionInfo], whitelist: list[str]):
                   file=sys.stderr)
 
 
-def autoremove(names, yes=False, remove_extra=False, whitelist: Union[list[str], None] = None):
-    dead_base_distributions: set[DistributionInfo] = list_dead(names, remove_extras=remove_extra)
-    dead_extras: set[DistributionInfo] = set()
+def autoremove(names, yes=False, remove_extra=False, whitelist: Union[List[str], None] = None):
+    dead_base_distributions: Set[DistributionInfo] = list_dead(names, remove_extras=remove_extra)
+    dead_extras: Set[DistributionInfo] = set()
     dead_distributions = dead_base_distributions | dead_extras
     if whitelist:
         exclude_whitelist_from(dead_distributions, whitelist)
@@ -216,7 +216,7 @@ def main(argv=None):
         parser.print_help()
     else:
         packages_name_to_remove = args
-        packages_whitelist: list[str] = []
+        packages_whitelist: List[str] = []
         if opts.read_file:
             filename = opts.read_file
             for package in collect_packages_from_file(filename):

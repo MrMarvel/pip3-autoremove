@@ -3,7 +3,7 @@ import os
 import sys
 import unittest
 from io import StringIO
-from typing import Sequence
+from typing import Sequence, List
 from unittest import TestCase
 
 from extra import importlib_utils
@@ -162,7 +162,7 @@ class TestPipAutoremove(TestCase):
         self.__pip_autoremove_main(['-y', '-e'] + installing_packages)
         pass
     
-    def _assert_install_packages(self, packages: list[str]):
+    def _assert_install_packages(self, packages: List[str]):
         for name in packages:
             self.__install_dist(name)
         for name in packages:
