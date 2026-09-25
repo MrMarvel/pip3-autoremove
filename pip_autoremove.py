@@ -223,9 +223,11 @@ def main(argv=None):
                 if package in packages_name_to_remove:
                     continue
                 packages_name_to_remove.append(package)
+        if opts.keep:
+            packages_whitelist += opts.keep.split(',')
         if opts.keep_file:
             filename = opts.keep_file
-            packages_whitelist = collect_packages_from_file(filename)
+            packages_whitelist += collect_packages_from_file(filename)
         autoremove(
             packages_name_to_remove, yes=opts.yes, remove_extra=opts.include_extras, whitelist=packages_whitelist)
 
@@ -277,6 +279,10 @@ def create_parser():
     parser.add_option(
         '-k', '--keep-file', action='store', default=None, dest='keep_file', metavar='<FILE>',
         help="read whitelist packages from file like keep_requirements.txt"
+    )
+    parser.add_option(
+        '--keep', action='store', default=None, dest='keep', metavar='<PACKAGE>,...',
+        help="keep package(s) from uninstalling"
     )
     return parser
 

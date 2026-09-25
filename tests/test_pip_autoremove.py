@@ -168,6 +168,14 @@ class TestPipAutoremove(TestCase):
         for name in packages:
             assert self.__has_dist(name), "Package \"%s\" was not installed." % name
     
+    def test9_keep(self):
+        installing_packages = ["cowsay"]
+        expected_whitelisted_packages = ["cowsay"]
+        self._assert_install_packages(installing_packages)
+        self.__pip_autoremove_main(['-y', '--keep', 'cowsay'] + installing_packages)
+        for name in expected_whitelisted_packages:
+            assert self.__has_dist(name), "Package \"%s\" was removed but should be kept." % name
+    
     def test8_keep_files(self):
         installing_packages = ["cowsay"]
         expected_whitelisted_packages = ["cowsay"]
